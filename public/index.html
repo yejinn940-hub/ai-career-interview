@@ -606,7 +606,6 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       return;
     }
     wrap.innerHTML = list.map(function(item){
-      var count = item.messages ? item.messages.length : 0;
       var mine = isOwnGroupArchiveItem(item);
       var submitted = mine && item.status === 'submitted';
       var actions;
@@ -622,10 +621,12 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
         actions = '<span class="archive-item-locked">다른 모둠의 면담 기록이에요 (보기·이어하기·삭제 불가)</span>';
       }
       var badge = submitted ? ' <span class="archive-item-badge">제출됨</span>' : '';
+      var title = item.groupName
+        ? (escapeHtml(item.groupName) + '(' + escapeHtml(item.figureName || '') + ')')
+        : escapeHtml(item.figureName || '');
       return '<div class="archive-item' + (mine ? '' : ' archive-item-locked-wrap') + '">'
-        + '<div class="archive-item-top"><strong>' + escapeHtml(item.figureName || '') + '</strong>' + badge
+        + '<div class="archive-item-top"><strong>' + title + '</strong>' + badge
         + '<span class="archive-item-meta">' + escapeHtml(formatSavedAt(item.updatedAt || item.savedAt)) + '</span></div>'
-        + '<span class="archive-item-meta">' + escapeHtml(item.figureJob || '') + ' · 메시지 ' + count + '개</span>'
         + '<div class="archive-item-actions">'
         + actions
         + '</div></div>';

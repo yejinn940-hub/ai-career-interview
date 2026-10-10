@@ -511,9 +511,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       window.__sharedItems = items;
       wrap.innerHTML = items.map(function(item){
         return '<div class="archive-item">'
-          + '<div class="archive-item-top"><strong>' + escapeHtml(item.figureName || '') + '</strong>'
+          + '<div class="archive-item-top"><strong>' + escapeHtml(item.groupName || '') + '</strong>'
           + '<span class="archive-item-meta">' + escapeHtml(formatSavedAt(item.updatedAt)) + '</span></div>'
-          + '<span class="archive-item-meta">' + escapeHtml(item.groupName || '') + '</span>'
+          + '<span class="archive-item-meta">' + escapeHtml(item.figureName || '') + '</span>'
           + '<div class="archive-item-actions">'
           + '<button type="button" class="btn-shared-view" data-id="' + escapeHtml(item.id) + '">보기</button>'
           + '</div></div>';
@@ -525,8 +525,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     var items = window.__sharedItems || [];
     var item = items.filter(function(x){ return x.id === id; })[0];
     if(!item) return;
-    document.getElementById('archive-detail-name').textContent = item.figureName || '';
-    document.getElementById('archive-detail-job').textContent = (item.groupName || '') + ' 모둠의 면담';
+    document.getElementById('archive-detail-name').textContent = item.groupName || '';
+    document.getElementById('archive-detail-job').textContent = (item.figureName || '') + '와의 면담';
     renderBubbles(document.getElementById('archive-detail-log'), item.messages || []);
     DETAIL_RETURN_VIEW = 'shared';
     showView('archive-detail');

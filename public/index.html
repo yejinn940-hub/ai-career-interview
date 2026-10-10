@@ -636,11 +636,11 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     fetch('/api/figures').then(function(r){ return r.json(); }).then(function(data){
       state.figures = (data && data.figures) || [];
       renderHome();
-      if(state.room){ enterApp(); } else { showView('join'); }
+      if(state.room){ showWelcome(); } else { showView('join'); }
     }).catch(function(){
       state.figures = [];
       renderHome();
-      if(state.room){ enterApp(); } else { showView('join'); }
+      if(state.room){ showWelcome(); } else { showView('join'); }
     });
   }
 

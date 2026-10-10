@@ -815,7 +815,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 
       if(e.target.id === 'btn-enter-app'){ enterApp(); return; }
 
-      if(e.target.id === 'btn-menu-characters'){ renderCharacters(); showView('characters'); return; }
+      if(e.target.closest('#btn-menu-characters')){ renderCharacters(); showView('characters'); return; }
       if(e.target.id === 'btn-characters-back'){ showView('home'); return; }
 
       if(e.target.id === 'btn-back'){ showView('characters'); return; }
@@ -836,7 +836,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
         return;
       }
 
-      if(e.target.id === 'btn-archive-open'){
+      if(e.target.closest('#btn-archive-open')){
         renderArchiveList(); showView('archive');
         pruneDeletedArchiveItems(renderArchiveList);
         return;
@@ -863,7 +863,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
         return;
       }
 
-      if(e.target.id === 'btn-shared-open'){ renderSharedList(); showView('shared'); return; }
+      if(e.target.closest('#btn-shared-open')){ renderSharedList(); showView('shared'); return; }
       if(e.target.id === 'btn-shared-back'){ showView('home'); return; }
       var sharedViewBtn = e.target.closest('.btn-shared-view');
       if(sharedViewBtn){ openSharedDetail(sharedViewBtn.getAttribute('data-id')); return; }

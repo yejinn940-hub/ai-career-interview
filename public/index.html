@@ -69,6 +69,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 .chat-form{display:flex;gap:8px;padding:10px 0 4px;position:sticky;bottom:0;background:var(--bg)}
 .chat-form input{flex:1;min-width:0;font:inherit;font-family:var(--font-body);background:var(--surface);color:var(--ink);border:1px solid var(--ai-bubble-border);border-radius:999px;padding:12px 16px}
 .btn-send{background:var(--accent);color:#fff;border:none;border-radius:50%;width:44px;height:44px;flex:none;font-size:1rem;cursor:pointer}
+.btn-restart{align-self:flex-start;background:none;border:1px solid var(--ai-bubble-border);color:var(--muted);font-size:.76rem;border-radius:999px;padding:6px 12px;cursor:pointer;margin:0 0 8px}
 @media (max-width:420px){ .figure-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))} }
 </style>
 </head>
@@ -99,6 +100,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '      <div class="chat-person"><strong id="chat-name"></strong><span id="chat-job"></span></div>',
     '    </div>',
     '    <p class="disclaimer small">공개된 인터뷰 자료를 바탕으로 답변하는 AI예요. 실제 인물의 말이 아닐 수 있어요.</p>',
+    '    <button class="btn-restart" type="button" id="btn-restart">↺ 이 면담 새로 시작하기</button>',
     '    <div id="chat-log" class="chat-log" aria-live="polite"></div>',
     '    <form id="chat-form" class="chat-form">',
     '      <input id="chat-input" autocomplete="off" placeholder="인사부터 시작해보세요" />',
@@ -108,12 +110,39 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '</div>'
   ].join('\n');
 
-  var state = { figures: [], currentFigureId: null, messages: [] };
+  var state = { figures: [], currentFigureId: null, currentFigureName: '', currentFigureJob: '', messages: [] };
+  var STORAGE_KEY = 'ai-interview-progress-v1';
 
   function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, function(c){
       return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
     });
+  }
+
+  function saveProgress(){
+    try{
+      if(!state.currentFigureId){ return; }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        figureId: state.currentFigureId,
+        figureName: state.currentFigureName,
+        figureJob: state.currentFigureJob,
+        messages: state.messages
+      }));
+    }catch(e){ /* 저장 실패해도 대화는 계속 진행 가능 */ }
+  }
+
+  function loadProgress(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return null;
+      var parsed = JSON.parse(raw);
+      if(!parsed || !parsed.figureId || !Array.isArray(parsed.messages)) return null;
+      return parsed;
+    }catch(e){ return null; }
+  }
+
+  function clearProgress(){
+    try{ localStorage.removeItem(STORAGE_KEY); }catch(e){ /* noop */ }
   }
 
   function showView(name){
@@ -137,15 +166,26 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     }).join('');
   }
 
-  function openChat(figureId){
+  function openChat(figureId, resumeMessages){
     var f = state.figures.filter(function(x){ return x.id===figureId; })[0];
     if(!f) return;
     state.currentFigureId = figureId;
-    state.messages = [];
+    state.currentFigureName = f.name;
+    state.currentFigureJob = f.job;
+    state.messages = Array.isArray(resumeMessages) ? resumeMessages.slice() : [];
     document.getElementById('chat-name').textContent = f.name;
     document.getElementById('chat-job').textContent = f.job;
-    document.getElementById('chat-log').innerHTML = '';
+    var log = document.getElementById('chat-log');
+    log.innerHTML = '';
+    state.messages.forEach(function(m){
+      var b = document.createElement('div');
+      b.className = 'bubble ' + (m.role==='user' ? 'bubble-user' : 'bubble-ai');
+      b.textContent = m.content;
+      log.appendChild(b);
+    });
+    log.scrollTop = log.scrollHeight;
     showView('chat');
+    if(!state.messages.length){ saveProgress(); }
     var input = document.getElementById('chat-input');
     input.value = '';
     setTimeout(function(){ input.focus(); }, 0);
@@ -163,6 +203,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 
   function sendMessage(text){
     state.messages.push({role:'user', content:text});
+    saveProgress();
     appendBubble('user', text);
     var pending = appendBubble('ai', '...');
     pending.classList.add('bubble-pending');
@@ -182,6 +223,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
         pending.textContent = finalText;
         pending.classList.remove('bubble-pending');
         state.messages.push({role:'assistant', content: finalText});
+        saveProgress();
         pending.parentNode.scrollTop = pending.parentNode.scrollHeight;
       }).catch(function(){
         pending.textContent = '네트워크 문제로 답을 받지 못했어요. 다시 시도해주세요.';
@@ -192,8 +234,14 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
   function wireEvents(){
     document.body.addEventListener('click', function(e){
       var startBtn = e.target.closest('.btn-start');
-      if(startBtn){ openChat(startBtn.getAttribute('data-id')); return; }
+      if(startBtn){ clearProgress(); openChat(startBtn.getAttribute('data-id')); return; }
       if(e.target.id === 'btn-back'){ showView('home'); return; }
+      if(e.target.id === 'btn-restart'){
+        if(!confirm('지금까지의 면담 내용이 사라져요. 새로 시작할까요?')) return;
+        clearProgress();
+        openChat(state.currentFigureId);
+        return;
+      }
     });
     document.getElementById('chat-form').addEventListener('submit', function(e){
       e.preventDefault();
@@ -211,6 +259,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     fetch('/api/figures').then(function(r){ return r.json(); }).then(function(data){
       state.figures = (data && data.figures) || [];
       renderHome();
+      var saved = loadProgress();
+      if(saved && state.figures.some(function(f){ return f.id === saved.figureId; })){
+        openChat(saved.figureId, saved.messages);
+      }
     }).catch(function(){
       state.figures = [];
       renderHome();

@@ -420,7 +420,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       grid.innerHTML = '<p class="empty">아직 등록된 면담 인물이 없어요. 선생님께 문의해주세요.</p>';
       return;
     }
-    grid.innerHTML = state.figures.map(function(f){
+    var sorted = state.figures.slice().sort(function(a, b){
+      return String(a.name || '').localeCompare(String(b.name || ''), 'ko');
+    });
+    grid.innerHTML = sorted.map(function(f){
       var avatar = f.photo
         ? '<div class="figure-avatar figure-avatar-photo"><img src="' + escapeHtml(f.photo) + '" alt="' + escapeHtml(f.name) + '" /></div>'
         : '<div class="figure-avatar">' + escapeHtml(f.name.slice(0,1)) + '</div>';

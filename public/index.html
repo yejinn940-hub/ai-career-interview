@@ -78,6 +78,14 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 .btn-archive-open{align-self:flex-start;border:none;font-size:1rem;font-weight:700;border-radius:999px;padding:14px 22px;cursor:pointer;margin:4px 10px 16px 0;display:inline-flex;align-items:center;gap:8px}
 .btn-archive-open.c-archive{background:#F2994A;color:#3A2103}
 .btn-archive-open.c-shared{background:#5B9BD5;color:#0B2A44}
+.menu-circle-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:28px;margin-top:24px;width:100%}
+.menu-circle-btn{width:150px;height:150px;border-radius:50%;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:.95rem;font-weight:700;line-height:1.3;padding:12px;box-shadow:0 4px 14px rgba(0,0,0,.18);transition:transform .12s ease}
+.menu-circle-btn:hover{transform:translateY(-3px)}
+.menu-circle-btn:active{transform:translateY(0)}
+.menu-circle-icon{font-size:2.1rem;line-height:1}
+.menu-circle-btn.c-characters{background:#2FA84F;color:#fff}
+.menu-circle-btn.c-archive{background:#F2994A;color:#3A2103}
+.menu-circle-btn.c-shared{background:#5B9BD5;color:#0B2A44}
 .archive-list{display:flex;flex-direction:column;gap:10px}
 .archive-item{background:var(--surface);border:1px solid var(--ai-bubble-border);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:4px}
 .archive-item-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
@@ -163,14 +171,18 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '    <p id="welcome-room-info" class="disclaimer small" style="margin-top:10px"></p>',
     '    <button type="button" id="btn-enter-app" class="btn-join" style="margin-top:8px;padding:12px 28px;font-size:1rem">입장하기</button>',
     '  </main>',
-    '  <main id="view-home" class="view" hidden>',
+    '  <main id="view-home" class="view" hidden style="align-items:center">',
     '    <div id="room-badge" class="room-badge"></div>',
+    '    <div class="menu-circle-grid">',
+    '      <button type="button" class="menu-circle-btn c-characters" id="btn-menu-characters"><span class="menu-circle-icon">🧑‍💼</span><span>인물 선택하기</span></button>',
+    '      <button type="button" class="menu-circle-btn c-archive" id="btn-archive-open"><span class="menu-circle-icon">📁</span><span>저장된 면담 기록 보기</span></button>',
+    '      <button type="button" class="menu-circle-btn c-shared" id="btn-shared-open"><span class="menu-circle-icon">🏫</span><span>학급에 공유된 면담</span></button>',
+    '    </div>',
+    '  </main>',
+    '  <main id="view-characters" class="view" hidden>',
+    '    <button class="btn-back" type="button" id="btn-characters-back">← 홈으로</button>',
     '    <h2 style="font-family:var(--font-display);font-size:1.7rem;font-weight:700;margin:4px 0 8px">인물 선택하기</h2>',
     '    <p class="disclaimer" style="color:#E53E3E;font-size:.9rem">여기 나오는 인물은 실제 사람이 아니라, 선생님이 등록한 공개 인터뷰 자료를 바탕으로 답하는 AI예요.</p>',
-    '    <div>',
-    '      <button class="btn-archive-open c-archive" type="button" id="btn-archive-open">📁 저장된 면담 기록 보기</button>',
-    '      <button class="btn-archive-open c-shared" type="button" id="btn-shared-open">🏫 학급에 공유된 면담</button>',
-    '    </div>',
     '    <div id="figure-grid" class="figure-grid"></div>',
     '  </main>',
     '  <main id="view-chat" class="view" hidden>',
@@ -397,12 +409,12 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
   }
 
   function showView(name){
-    ['join','welcome','home','chat','archive','shared','archive-detail'].forEach(function(v){
+    ['join','welcome','home','characters','chat','archive','shared','archive-detail'].forEach(function(v){
       document.getElementById('view-' + v).hidden = (v !== name);
     });
   }
 
-  function renderHome(){
+  function renderCharacters(){
     var grid = document.getElementById('figure-grid');
     if(!state.figures.length){
       grid.innerHTML = '<p class="empty">아직 등록된 면담 인물이 없어요. 선생님께 문의해주세요.</p>';
@@ -803,7 +815,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 
       if(e.target.id === 'btn-enter-app'){ enterApp(); return; }
 
-      if(e.target.id === 'btn-back'){ showView('home'); return; }
+      if(e.target.id === 'btn-menu-characters'){ renderCharacters(); showView('characters'); return; }
+      if(e.target.id === 'btn-characters-back'){ showView('home'); return; }
+
+      if(e.target.id === 'btn-back'){ showView('characters'); return; }
 
       if(e.target.id === 'btn-restart'){
         if(!confirm('새 면담을 시작할까요? (지금까지의 대화는 자동으로 저장되어 있어요)')) return;
@@ -887,11 +902,11 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     populateJoinSelects();
     fetch('/api/figures').then(function(r){ return r.json(); }).then(function(data){
       state.figures = (data && data.figures) || [];
-      renderHome();
+      renderCharacters();
       showView('join');
     }).catch(function(){
       state.figures = [];
-      renderHome();
+      renderCharacters();
       showView('join');
     });
   }

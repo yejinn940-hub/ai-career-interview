@@ -49,9 +49,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 [hidden]{display:none!important}
 .disclaimer{background:var(--surface-2);color:var(--muted);font-size:.78rem;padding:10px 14px;border-radius:12px;margin:8px 0 16px}
 .disclaimer.small{margin:10px 0}
-.figure-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
-.figure-card{background:var(--surface);border:1px solid var(--ai-bubble-border);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
-.figure-avatar{width:56px;height:56px;border-radius:50%;background:var(--surface-2);color:var(--ink);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:1.3rem;overflow:hidden;flex:none}
+.figure-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.figure-card{background:var(--surface);border:1px solid var(--ai-bubble-border);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:6px;align-items:center;text-align:center}
+.figure-avatar{width:280px;height:280px;max-width:100%;border-radius:50%;background:var(--surface-2);color:var(--ink);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:4rem;overflow:hidden;flex:none}
 .figure-avatar-photo img{width:100%;height:100%;object-fit:cover;border-radius:50%}
 .figure-card h3{margin:4px 0 0;font-size:1rem}
 .figure-card p{margin:0;color:var(--muted);font-size:.82rem}
@@ -95,7 +95,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 .room-badge{background:var(--surface-2);color:var(--muted);font-size:.78rem;padding:8px 12px;border-radius:12px;margin:4px 0 12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .room-badge button{background:none;border:none;color:var(--accent);font-size:.78rem;cursor:pointer;text-decoration:underline}
 .form-error{color:#B3432B;font-size:.82rem}
-@media (max-width:420px){ .figure-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))} }
+@media (max-width:420px){ .figure-grid{grid-template-columns:1fr} .figure-avatar{width:220px;height:220px} }
 </style>
 </head>
 <body>

@@ -104,6 +104,28 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    // ---- 학생 쪽: 제출 취소 (자기 모둠 것만 가능) ----
+    if (action === 'unsubmit') {
+      const { room, key } = await getRoom(body.school, body.grade, body.classNum);
+      if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
+
+      const list = await getList(key);
+      const rec = list.filter(function (x) { return x.id === body.id; })[0];
+      if (!rec) { res.status(404).json({ error: '취소할 제출을 찾지 못했어요.' }); return; }
+
+      const groupName = store.normalize(body.groupName);
+      if (!groupName || rec.groupName !== groupName) {
+        res.status(403).json({ error: '본인 모둠이 제출한 기록만 취소할 수 있어요.' });
+        return;
+      }
+
+      rec.status = 'in_progress';
+      rec.submittedAt = null;
+      await saveList(key, list);
+      res.status(200).json({ ok: true });
+      return;
+    }
+
     // ---- 공개: 학급에 공유된 면담 목록 (코드 불필요, 반 정보만 필요) ----
     if (action === 'shared-list') {
       const { room, key } = await getRoom(body.school, body.grade, body.classNum);

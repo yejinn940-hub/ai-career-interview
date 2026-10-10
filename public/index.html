@@ -73,7 +73,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 .chat-actions{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px}
 .chat-actions button{background:none;border:1px solid var(--ai-bubble-border);color:var(--muted);font-size:.76rem;border-radius:999px;padding:6px 12px;cursor:pointer}
 .chat-actions button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-.btn-archive-open{align-self:flex-start;background:var(--surface);border:1px solid var(--ai-bubble-border);color:var(--ink);font-size:.82rem;border-radius:999px;padding:8px 14px;cursor:pointer;margin:4px 8px 16px 0;display:inline-flex;align-items:center;gap:6px}
+.btn-archive-open{align-self:flex-start;border:none;font-size:1rem;font-weight:700;border-radius:999px;padding:14px 22px;cursor:pointer;margin:4px 10px 16px 0;display:inline-flex;align-items:center;gap:8px}
+.btn-archive-open.c-archive{background:#F2994A;color:#3A2103}
+.btn-archive-open.c-shared{background:#5B9BD5;color:#0B2A44}
 .archive-list{display:flex;flex-direction:column;gap:10px}
 .archive-item{background:var(--surface);border:1px solid var(--ai-bubble-border);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:4px}
 .archive-item-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
@@ -150,8 +152,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '    <h2 style="font-family:var(--font-display);font-size:1.1rem;margin:4px 0 8px">인물 선택하기</h2>',
     '    <p class="disclaimer">여기 나오는 인물은 실제 사람이 아니라, 선생님이 등록한 공개 인터뷰 자료를 바탕으로 답하는 AI예요.</p>',
     '    <div>',
-    '      <button class="btn-archive-open" type="button" id="btn-archive-open">📁 저장된 면담 기록</button>',
-    '      <button class="btn-archive-open" type="button" id="btn-shared-open">🏫 학급에 공유된 면담</button>',
+    '      <button class="btn-archive-open c-archive" type="button" id="btn-archive-open">📁 저장된 면담 기록 보기</button>',
+    '      <button class="btn-archive-open c-shared" type="button" id="btn-shared-open">🏫 학급에 공유된 면담</button>',
     '    </div>',
     '    <div id="figure-grid" class="figure-grid"></div>',
     '  </main>',

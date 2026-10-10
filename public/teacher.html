@@ -364,14 +364,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     document.getElementById('root').innerHTML = SHELL_HTML;
     wireEvents();
     populateLoginSelects();
-    var auth = loadAuth();
-    if(auth){
-      state.auth = auth;
-      showView('dashboard');
-      loadDashboard();
-    }else{
-      showView('login');
-    }
+    showView('login');
   }
 
   if(document.readyState === 'loading'){

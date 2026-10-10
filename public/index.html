@@ -87,6 +87,16 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 .archive-item-actions button{font-size:.78rem;border-radius:999px;padding:6px 12px;cursor:pointer;border:1px solid var(--ai-bubble-border);background:var(--surface-2);color:var(--ink)}
 .archive-item-actions button.danger{color:#B3432B;border-color:#B3432B}
 .archive-detail-log{flex:1;display:flex;flex-direction:column;gap:10px;padding:8px 0;overflow-y:auto}
+.bubble-wrap{display:flex;flex-direction:column;gap:4px}
+.bubble-wrap-user{align-items:flex-end}
+.bubble-wrap-ai{align-items:flex-start}
+.btn-feedback{background:none;border:none;color:var(--muted);font-size:.72rem;cursor:pointer;padding:2px 4px}
+.feedback-notes{display:flex;flex-direction:column;gap:4px;max-width:78%}
+.feedback-note{font-size:.78rem;padding:6px 10px;border-radius:10px;line-height:1.4}
+.feedback-note strong{margin-right:4px}
+.feedback-form{display:flex;gap:6px;max-width:78%;margin-top:2px}
+.feedback-form textarea{flex:1;font:inherit;font-family:var(--font-body);border:1px solid var(--ai-bubble-border);border-radius:10px;padding:6px 10px;background:var(--surface);color:var(--ink);resize:vertical;min-height:34px;font-size:.82rem}
+.feedback-form button{background:var(--accent);color:#fff;border:none;border-radius:999px;padding:0 14px;font-size:.78rem;cursor:pointer}
 .room-form{display:flex;flex-direction:column;gap:12px;max-width:360px}
 .room-form label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:6px}
 .room-form input,.room-form select{font:inherit;font-family:var(--font-body);background:var(--surface);color:var(--ink);border:1px solid var(--ai-bubble-border);border-radius:10px;padding:10px 12px}
@@ -197,7 +207,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '</div>'
   ].join('\n');
 
-  var state = { figures: [], currentFigureId: null, currentFigureName: '', currentFigureJob: '', messages: [], conversationId: null, room: null };
+  var state = { figures: [], currentFigureId: null, currentFigureName: '', currentFigureJob: '', messages: [], conversationId: null, room: null, currentSharedId: null, currentSharedMessages: [], sharedComments: {} };
   var STORAGE_KEY = 'ai-interview-progress-v1';
   var ARCHIVE_KEY = 'ai-interview-archive-v1';
   var ROOM_KEY = 'ai-interview-room-v1';
@@ -386,6 +396,74 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     container.scrollTop = container.scrollHeight;
   }
 
+  function groupColor(name){
+    var str = String(name || '');
+    var hash = 0;
+    for(var i=0;i<str.length;i++){ hash = (hash * 31 + str.charCodeAt(i)) >>> 0; }
+    var hue = hash % 360;
+    return { bg: 'hsl(' + hue + ',70%,90%)', fg: 'hsl(' + hue + ',70%,28%)', border: 'hsl(' + hue + ',55%,70%)' };
+  }
+
+  function renderSharedBubbles(container, messages, submissionId){
+    var comments = state.sharedComments || {};
+    container.innerHTML = messages.map(function(m, idx){
+      var wrapClass = 'bubble-wrap ' + (m.role==='user' ? 'bubble-wrap-user' : 'bubble-wrap-ai');
+      var bubbleClass = 'bubble ' + (m.role==='user' ? 'bubble-user' : 'bubble-ai');
+      var msgComments = comments[String(idx)] || [];
+      var notesHtml = msgComments.map(function(c){
+        var col = groupColor(c.groupName);
+        return '<div class="feedback-note" style="background:' + col.bg + ';color:' + col.fg + ';border:1px solid ' + col.border + '">'
+          + '<strong>' + escapeHtml(c.groupName) + '</strong>' + escapeHtml(c.text)
+          + '</div>';
+      }).join('');
+      return '<div class="' + wrapClass + '" data-index="' + idx + '">'
+        + '<div class="' + bubbleClass + '">' + escapeHtml(m.content) + '</div>'
+        + '<button type="button" class="btn-feedback" data-index="' + idx + '">💬 피드백 남기기</button>'
+        + (notesHtml ? '<div class="feedback-notes">' + notesHtml + '</div>' : '')
+        + '<div class="feedback-form" data-index="' + idx + '" hidden>'
+        + '<textarea class="feedback-input" placeholder="피드백을 남겨보세요"></textarea>'
+        + '<button type="button" class="btn-feedback-submit" data-index="' + idx + '">등록</button>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function loadSharedComments(submissionId){
+    if(!state.room) return;
+    fetch('/api/comments', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ action:'list', school: state.room.school, grade: state.room.grade, classNum: state.room.classNum, submissionId: submissionId })
+    }).then(function(r){ return r.json(); }).then(function(data){
+      var map = {};
+      ((data && data.items) || []).forEach(function(c){
+        var key = String(c.messageIndex);
+        if(!map[key]) map[key] = [];
+        map[key].push(c);
+      });
+      state.sharedComments = map;
+      if(state.currentSharedId === submissionId){
+        renderSharedBubbles(document.getElementById('archive-detail-log'), state.currentSharedMessages || [], submissionId);
+      }
+    }).catch(function(){});
+  }
+
+  function submitFeedback(index){
+    if(!state.room || !state.currentSharedId) return;
+    var formEl = document.querySelector('.feedback-form[data-index="' + index + '"]');
+    if(!formEl) return;
+    var textarea = formEl.querySelector('.feedback-input');
+    var text = textarea.value.trim();
+    if(!text) return;
+    fetch('/api/comments', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ action:'add', school: state.room.school, grade: state.room.grade, classNum: state.room.classNum, submissionId: state.currentSharedId, messageIndex: Number(index), groupName: state.room.groupName, text: text })
+    }).then(function(r){ return r.json(); }).then(function(data){
+      if(!data || !data.ok){ alert((data && data.error) || '등록하지 못했어요.'); return; }
+      loadSharedComments(state.currentSharedId);
+    }).catch(function(){ alert('네트워크 문제로 등록하지 못했어요.'); });
+  }
+
   function openChat(figureId, resumeMessages, resumeId){
     var f = state.figures.filter(function(x){ return x.id===figureId; })[0];
     if(!f) return;
@@ -479,6 +557,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     if(!item) return;
     document.getElementById('archive-detail-name').textContent = item.figureName || '';
     document.getElementById('archive-detail-job').textContent = item.figureJob || '';
+    state.currentSharedId = null;
     renderBubbles(document.getElementById('archive-detail-log'), item.messages || []);
     DETAIL_RETURN_VIEW = 'archive';
     showView('archive-detail');
@@ -527,9 +606,13 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     if(!item) return;
     document.getElementById('archive-detail-name').textContent = item.groupName || '';
     document.getElementById('archive-detail-job').textContent = (item.figureName || '') + '와의 면담';
-    renderBubbles(document.getElementById('archive-detail-log'), item.messages || []);
+    state.currentSharedId = id;
+    state.currentSharedMessages = item.messages || [];
+    state.sharedComments = {};
+    renderSharedBubbles(document.getElementById('archive-detail-log'), state.currentSharedMessages, id);
     DETAIL_RETURN_VIEW = 'shared';
     showView('archive-detail');
+    loadSharedComments(id);
   }
 
   // ---------- 입장 처리 ----------
@@ -660,6 +743,19 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       if(e.target.id === 'btn-shared-back'){ showView('home'); return; }
       var sharedViewBtn = e.target.closest('.btn-shared-view');
       if(sharedViewBtn){ openSharedDetail(sharedViewBtn.getAttribute('data-id')); return; }
+
+      var fbBtn = e.target.closest('.btn-feedback');
+      if(fbBtn){
+        var fbIdx = fbBtn.getAttribute('data-index');
+        var fbForm = document.querySelector('.feedback-form[data-index="' + fbIdx + '"]');
+        if(fbForm){
+          fbForm.hidden = !fbForm.hidden;
+          if(!fbForm.hidden){ var fbTa = fbForm.querySelector('textarea'); if(fbTa){ fbTa.focus(); } }
+        }
+        return;
+      }
+      var fbSubmitBtn = e.target.closest('.btn-feedback-submit');
+      if(fbSubmitBtn){ submitFeedback(fbSubmitBtn.getAttribute('data-index')); return; }
     });
 
     document.getElementById('chat-form').addEventListener('submit', function(e){

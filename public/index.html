@@ -591,10 +591,6 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
   function enterApp(){
     renderRoomBadge();
     showView('home');
-    var saved = loadProgress();
-    if(saved && state.figures.some(function(f){ return f.id === saved.figureId; })){
-      openChat(saved.figureId, saved.messages, saved.conversationId);
-    }
   }
 
   function wireEvents(){
@@ -602,7 +598,17 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 
     document.body.addEventListener('click', function(e){
       var startBtn = e.target.closest('.btn-start');
-      if(startBtn){ clearProgress(); openChat(startBtn.getAttribute('data-id')); return; }
+      if(startBtn){
+        var figId = startBtn.getAttribute('data-id');
+        var saved = loadProgress();
+        if(saved && saved.figureId === figId){
+          openChat(figId, saved.messages, saved.conversationId);
+        } else {
+          clearProgress();
+          openChat(figId);
+        }
+        return;
+      }
 
       if(e.target.id === 'btn-enter-app'){ enterApp(); return; }
 

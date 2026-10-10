@@ -70,6 +70,16 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 .chat-form input{flex:1;min-width:0;font:inherit;font-family:var(--font-body);background:var(--surface);color:var(--ink);border:1px solid var(--ai-bubble-border);border-radius:999px;padding:12px 16px}
 .btn-send{background:var(--accent);color:#fff;border:none;border-radius:50%;width:44px;height:44px;flex:none;font-size:1rem;cursor:pointer}
 .btn-restart{align-self:flex-start;background:none;border:1px solid var(--ai-bubble-border);color:var(--muted);font-size:.76rem;border-radius:999px;padding:6px 12px;cursor:pointer;margin:0 0 8px}
+.btn-archive-open{align-self:flex-start;background:var(--surface);border:1px solid var(--ai-bubble-border);color:var(--ink);font-size:.82rem;border-radius:999px;padding:8px 14px;cursor:pointer;margin:4px 0 16px;display:inline-flex;align-items:center;gap:6px}
+.archive-list{display:flex;flex-direction:column;gap:10px}
+.archive-item{background:var(--surface);border:1px solid var(--ai-bubble-border);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.archive-item-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.archive-item-top strong{font-family:var(--font-display);font-size:.98rem}
+.archive-item-meta{color:var(--muted);font-size:.76rem}
+.archive-item-actions{display:flex;gap:8px;margin-top:8px}
+.archive-item-actions button{font-size:.78rem;border-radius:999px;padding:6px 12px;cursor:pointer;border:1px solid var(--ai-bubble-border);background:var(--surface-2);color:var(--ink)}
+.archive-item-actions button.danger{color:#B3432B;border-color:#B3432B}
+.archive-detail-log{flex:1;display:flex;flex-direction:column;gap:10px;padding:8px 0;overflow-y:auto}
 @media (max-width:420px){ .figure-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))} }
 </style>
 </head>
@@ -92,6 +102,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '  </header>',
     '  <main id="view-home" class="view">',
     '    <p class="disclaimer">여기 나오는 인물은 실제 사람이 아니라, 선생님이 등록한 공개 인터뷰 자료를 바탕으로 답하는 AI예요.</p>',
+    '    <button class="btn-archive-open" type="button" id="btn-archive-open">📁 저장된 면담 기록</button>',
     '    <div id="figure-grid" class="figure-grid"></div>',
     '  </main>',
     '  <main id="view-chat" class="view" hidden>',
@@ -100,18 +111,33 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '      <div class="chat-person"><strong id="chat-name"></strong><span id="chat-job"></span></div>',
     '    </div>',
     '    <p class="disclaimer small">공개된 인터뷰 자료를 바탕으로 답변하는 AI예요. 실제 인물의 말이 아닐 수 있어요.</p>',
-    '    <button class="btn-restart" type="button" id="btn-restart">↺ 이 면담 새로 시작하기</button>',
+    '    <button class="btn-restart" type="button" id="btn-restart">↺ 이 면담 저장하고 새로 시작하기</button>',
     '    <div id="chat-log" class="chat-log" aria-live="polite"></div>',
     '    <form id="chat-form" class="chat-form">',
     '      <input id="chat-input" autocomplete="off" placeholder="인사부터 시작해보세요" />',
     '      <button type="submit" class="btn-send" aria-label="보내기">➤</button>',
     '    </form>',
     '  </main>',
+    '  <main id="view-archive" class="view" hidden>',
+    '    <button class="btn-back" type="button" id="btn-archive-back">← 홈으로</button>',
+    '    <h2 style="font-family:var(--font-display);font-size:1.05rem;margin:4px 0 10px">저장된 면담 기록</h2>',
+    '    <p class="disclaimer small">이 기기(브라우저)에만 저장돼요. 다른 기기에서는 보이지 않아요.</p>',
+    '    <div id="archive-list" class="archive-list"></div>',
+    '  </main>',
+    '  <main id="view-archive-detail" class="view" hidden>',
+    '    <button class="btn-back" type="button" id="btn-archive-detail-back">← 목록으로</button>',
+    '    <div class="chat-header">',
+    '      <div class="chat-person"><strong id="archive-detail-name"></strong><span id="archive-detail-job"></span></div>',
+    '    </div>',
+    '    <div id="archive-detail-log" class="archive-detail-log"></div>',
+    '  </main>',
     '</div>'
   ].join('\n');
 
   var state = { figures: [], currentFigureId: null, currentFigureName: '', currentFigureJob: '', messages: [] };
   var STORAGE_KEY = 'ai-interview-progress-v1';
+  var ARCHIVE_KEY = 'ai-interview-archive-v1';
+  var ARCHIVE_MAX = 50;
 
   function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, function(c){
@@ -145,9 +171,91 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     try{ localStorage.removeItem(STORAGE_KEY); }catch(e){ /* noop */ }
   }
 
+  function loadArchive(){
+    try{
+      var raw = localStorage.getItem(ARCHIVE_KEY);
+      var list = raw ? JSON.parse(raw) : [];
+      return Array.isArray(list) ? list : [];
+    }catch(e){ return []; }
+  }
+
+  function saveArchive(list){
+    try{ localStorage.setItem(ARCHIVE_KEY, JSON.stringify(list.slice(0, ARCHIVE_MAX))); }catch(e){ /* noop */ }
+  }
+
+  function archiveCurrentConversation(){
+    if(!state.currentFigureId || !state.messages.length) return;
+    var list = loadArchive();
+    list.unshift({
+      id: 'a' + Date.now() + Math.floor(Math.random()*1000),
+      figureId: state.currentFigureId,
+      figureName: state.currentFigureName,
+      figureJob: state.currentFigureJob,
+      messages: state.messages,
+      savedAt: new Date().toISOString()
+    });
+    saveArchive(list);
+  }
+
+  function formatSavedAt(iso){
+    try{
+      var d = new Date(iso);
+      var mm = String(d.getMonth()+1).padStart(2,'0');
+      var dd = String(d.getDate()).padStart(2,'0');
+      var hh = String(d.getHours()).padStart(2,'0');
+      var mi = String(d.getMinutes()).padStart(2,'0');
+      return mm + '/' + dd + ' ' + hh + ':' + mi;
+    }catch(e){ return ''; }
+  }
+
   function showView(name){
     document.getElementById('view-home').hidden = (name !== 'home');
     document.getElementById('view-chat').hidden = (name !== 'chat');
+    document.getElementById('view-archive').hidden = (name !== 'archive');
+    document.getElementById('view-archive-detail').hidden = (name !== 'archive-detail');
+  }
+
+  function renderArchiveList(){
+    var list = loadArchive();
+    var wrap = document.getElementById('archive-list');
+    if(!list.length){
+      wrap.innerHTML = '<p class="empty">아직 저장된 면담이 없어요. 면담을 마치면 "저장하고 새로 시작하기"로 기록을 남길 수 있어요.</p>';
+      return;
+    }
+    wrap.innerHTML = list.map(function(item){
+      var count = item.messages ? item.messages.length : 0;
+      return '<div class="archive-item" data-id="' + escapeHtml(item.id) + '">'
+        + '<div class="archive-item-top"><strong>' + escapeHtml(item.figureName || '') + '</strong>'
+        + '<span class="archive-item-meta">' + escapeHtml(formatSavedAt(item.savedAt)) + '</span></div>'
+        + '<span class="archive-item-meta">' + escapeHtml(item.figureJob || '') + ' · 메시지 ' + count + '개</span>'
+        + '<div class="archive-item-actions">'
+        + '<button type="button" class="btn-archive-view" data-id="' + escapeHtml(item.id) + '">보기</button>'
+        + '<button type="button" class="btn-archive-delete danger" data-id="' + escapeHtml(item.id) + '">삭제</button>'
+        + '</div></div>';
+    }).join('');
+  }
+
+  function openArchiveDetail(id){
+    var list = loadArchive();
+    var item = list.filter(function(x){ return x.id === id; })[0];
+    if(!item) return;
+    document.getElementById('archive-detail-name').textContent = item.figureName || '';
+    document.getElementById('archive-detail-job').textContent = item.figureJob || '';
+    var log = document.getElementById('archive-detail-log');
+    log.innerHTML = '';
+    (item.messages || []).forEach(function(m){
+      var b = document.createElement('div');
+      b.className = 'bubble ' + (m.role==='user' ? 'bubble-user' : 'bubble-ai');
+      b.textContent = m.content;
+      log.appendChild(b);
+    });
+    showView('archive-detail');
+  }
+
+  function deleteArchiveItem(id){
+    var list = loadArchive().filter(function(x){ return x.id !== id; });
+    saveArchive(list);
+    renderArchiveList();
   }
 
   function renderHome(){
@@ -234,12 +342,29 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
   function wireEvents(){
     document.body.addEventListener('click', function(e){
       var startBtn = e.target.closest('.btn-start');
-      if(startBtn){ clearProgress(); openChat(startBtn.getAttribute('data-id')); return; }
+      if(startBtn){
+        archiveCurrentConversation();
+        clearProgress();
+        openChat(startBtn.getAttribute('data-id'));
+        return;
+      }
       if(e.target.id === 'btn-back'){ showView('home'); return; }
       if(e.target.id === 'btn-restart'){
-        if(!confirm('지금까지의 면담 내용이 사라져요. 새로 시작할까요?')) return;
+        if(!confirm('지금까지의 면담 내용을 저장하고 새로 시작할까요?')) return;
+        archiveCurrentConversation();
         clearProgress();
         openChat(state.currentFigureId);
+        return;
+      }
+      if(e.target.id === 'btn-archive-open'){ renderArchiveList(); showView('archive'); return; }
+      if(e.target.id === 'btn-archive-back'){ showView('home'); return; }
+      if(e.target.id === 'btn-archive-detail-back'){ renderArchiveList(); showView('archive'); return; }
+      var viewBtn = e.target.closest('.btn-archive-view');
+      if(viewBtn){ openArchiveDetail(viewBtn.getAttribute('data-id')); return; }
+      var delBtn = e.target.closest('.btn-archive-delete');
+      if(delBtn){
+        if(!confirm('이 면담 기록을 삭제할까요?')) return;
+        deleteArchiveItem(delBtn.getAttribute('data-id'));
         return;
       }
     });

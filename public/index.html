@@ -84,9 +84,12 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 .archive-detail-log{flex:1;display:flex;flex-direction:column;gap:10px;padding:8px 0;overflow-y:auto}
 .room-form{display:flex;flex-direction:column;gap:12px;max-width:360px}
 .room-form label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:6px}
-.room-form input{font:inherit;font-family:var(--font-body);background:var(--surface);color:var(--ink);border:1px solid var(--ai-bubble-border);border-radius:10px;padding:10px 12px}
+.room-form input,.room-form select{font:inherit;font-family:var(--font-body);background:var(--surface);color:var(--ink);border:1px solid var(--ai-bubble-border);border-radius:10px;padding:10px 12px}
 .room-form .row{display:flex;gap:8px}
 .room-form .row label{flex:1}
+.room-form .school-row{display:flex;gap:8px}
+.room-form .school-row input{flex:2}
+.room-form .school-row select{flex:1}
 .btn-join{background:var(--accent);color:#fff;border:none;border-radius:999px;padding:10px 16px;font-size:.9rem;cursor:pointer;margin-top:4px}
 .room-badge{background:var(--surface-2);color:var(--muted);font-size:.78rem;padding:8px 12px;border-radius:12px;margin:4px 0 12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .room-badge button{background:none;border:none;color:var(--accent);font-size:.78rem;cursor:pointer;text-decoration:underline}
@@ -114,12 +117,21 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '  <main id="view-join" class="view">',
     '    <p class="disclaimer">선생님이 만든 반에 입장할게요. 학교/학년/반 정보는 선생님께 확인해주세요.</p>',
     '    <form id="join-form" class="room-form">',
-    '      <label>학교 이름<input id="join-school" autocomplete="off" placeholder="예: 낙민초등학교" /></label>',
+    '      <label>학교 이름',
+    '        <div class="school-row">',
+    '          <input id="join-school" autocomplete="off" placeholder="예: 낙민" />',
+    '          <select id="join-school-type">',
+    '            <option value="초등학교">초등학교</option>',
+    '            <option value="중학교">중학교</option>',
+    '            <option value="고등학교">고등학교</option>',
+    '          </select>',
+    '        </div>',
+    '      </label>',
     '      <div class="row">',
-    '        <label>학년<input id="join-grade" autocomplete="off" placeholder="예: 6" /></label>',
-    '        <label>반<input id="join-class" autocomplete="off" placeholder="예: 2" /></label>',
+    '        <label>학년<select id="join-grade"></select></label>',
+    '        <label>반<select id="join-class"></select></label>',
     '      </div>',
-    '      <label>모둠 이름<input id="join-group" autocomplete="off" placeholder="예: 1모둠" /></label>',
+    '      <label>모둠<select id="join-group"></select></label>',
     '      <p id="join-error" class="form-error" hidden></p>',
     '      <button type="submit" class="btn-join">확인</button>',
     '    </form>',
@@ -519,13 +531,34 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     el.hidden = !msg;
   }
 
+  function fillSelect(id, count, labelFn){
+    var sel = document.getElementById(id);
+    if(!sel) return;
+    sel.innerHTML = '';
+    for(var i = 1; i <= count; i++){
+      var opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = labelFn ? labelFn(i) : String(i);
+      sel.appendChild(opt);
+    }
+  }
+
+  function populateJoinSelects(){
+    fillSelect('join-grade', 6);
+    fillSelect('join-class', 10);
+    fillSelect('join-group', 10, function(i){ return i + '모둠'; });
+  }
+
   function handleJoinSubmit(e){
     e.preventDefault();
-    var school = document.getElementById('join-school').value.trim();
+    var schoolBase = document.getElementById('join-school').value.trim();
+    var schoolType = document.getElementById('join-school-type').value;
+    var school = schoolBase ? (schoolBase + schoolType) : '';
     var grade = document.getElementById('join-grade').value.trim();
     var classNum = document.getElementById('join-class').value.trim();
-    var groupName = document.getElementById('join-group').value.trim();
-    if(!school || !grade || !classNum || !groupName){
+    var groupSel = document.getElementById('join-group');
+    var groupName = groupSel.options[groupSel.selectedIndex] ? groupSel.options[groupSel.selectedIndex].textContent : '';
+    if(!schoolBase || !grade || !classNum || !groupName){
       showJoinError('모든 칸을 입력해주세요.');
       return;
     }
@@ -632,6 +665,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
   function init(){
     document.getElementById('root').innerHTML = SHELL_HTML;
     wireEvents();
+    populateJoinSelects();
     state.room = loadRoom();
     fetch('/api/figures').then(function(r){ return r.json(); }).then(function(data){
       state.figures = (data && data.figures) || [];

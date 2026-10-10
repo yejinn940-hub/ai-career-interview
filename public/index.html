@@ -121,9 +121,16 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '      </div>',
     '      <label>모둠 이름<input id="join-group" autocomplete="off" placeholder="예: 1모둠" /></label>',
     '      <p id="join-error" class="form-error" hidden></p>',
-    '      <button type="submit" class="btn-join">입장하기</button>',
+    '      <button type="submit" class="btn-join">확인</button>',
     '    </form>',
     '    <p class="disclaimer small"><a href="/teacher.html">선생님이신가요? 반 만들기 →</a></p>',
+    '  </main>',
+    '  <main id="view-welcome" class="view" hidden style="align-items:center;justify-content:center;text-align:center;gap:14px">',
+    '    <div class="brand-mark" style="width:72px;height:72px;font-size:1.9rem;margin:0 auto">AI</div>',
+    '    <h1 style="font-family:var(--font-display);font-size:2.1rem;margin:0">AI가상면담</h1>',
+    '    <p class="tagline" style="font-size:.95rem;margin:0">궁금한 점을 해결해요 · 진로 인물 면담 연습</p>',
+    '    <p id="welcome-room-info" class="disclaimer small" style="margin-top:10px"></p>',
+    '    <button type="button" id="btn-enter-app" class="btn-join" style="margin-top:8px;padding:12px 28px;font-size:1rem">입장하기</button>',
     '  </main>',
     '  <main id="view-home" class="view" hidden>',
     '    <div id="room-badge" class="room-badge"></div>',
@@ -327,7 +334,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
   }
 
   function showView(name){
-    ['join','home','chat','archive','shared','archive-detail'].forEach(function(v){
+    ['join','welcome','home','chat','archive','shared','archive-detail'].forEach(function(v){
       document.getElementById('view-' + v).hidden = (v !== name);
     });
   }
@@ -535,8 +542,17 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
         var room = { school:school, grade:grade, classNum:classNum, groupName:groupName, teacherName: res.data.room.teacherName };
         state.room = room;
         saveRoom(room);
-        enterApp();
+        showWelcome();
       }).catch(function(){ showJoinError('네트워크 문제로 입장하지 못했어요.'); });
+  }
+
+  function showWelcome(){
+    var room = state.room;
+    var info = document.getElementById('welcome-room-info');
+    if(info && room){
+      info.textContent = room.school + ' ' + room.grade + '학년 ' + room.classNum + '반 · ' + room.groupName + ' 모둠';
+    }
+    showView('welcome');
   }
 
   function enterApp(){
@@ -554,6 +570,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     document.body.addEventListener('click', function(e){
       var startBtn = e.target.closest('.btn-start');
       if(startBtn){ clearProgress(); openChat(startBtn.getAttribute('data-id')); return; }
+
+      if(e.target.id === 'btn-enter-app'){ enterApp(); return; }
 
       if(e.target.id === 'btn-back'){ showView('home'); return; }
 

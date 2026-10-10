@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 진로 면담실</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#F2F4F8;
+  --surface:#FFFFFF;
+  --surface-2:#E6EAF1;
+  --ink:#1C2430;
+  --muted:#667085;
+  --accent:#D98A2B;
+  --user-bubble:#FFE8C2;
+  --user-bubble-ink:#5C3C10;
+  --ai-bubble:#FFFFFF;
+  --ai-bubble-border:#E1E5EC;
+  --radius:16px;
+  --font-display:'Gowun Dodum','Apple SD Gothic Neo',sans-serif;
+  --font-body:'Noto Sans KR','Apple SD Gothic Neo',sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --bg:#121722;
+    --surface:#1B222E;
+    --surface-2:#242D3B;
+    --ink:#E8ECF2;
+    --muted:#98A2B3;
+    --accent:#E8A33D;
+    --user-bubble:#3A2E18;
+    --user-bubble-ink:#FCE8C2;
+    --ai-bubble:#1F2733;
+    --ai-bubble-border:#2E3847;
+  }
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)}
+.app-shell{max-width:720px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+.topbar{padding:20px 20px 8px;display:flex;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand-mark{width:40px;height:40px;border-radius:12px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;flex:none}
+.topbar h1{font-family:var(--font-display);font-size:1.25rem;margin:0}
+.tagline{margin:2px 0 0;color:var(--muted);font-size:.8rem}
+.view{padding:0 20px 24px;flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+[hidden]{display:none!important}
+.disclaimer{background:var(--surface-2);color:var(--muted);font-size:.78rem;padding:10px 14px;border-radius:12px;margin:8px 0 16px}
+.disclaimer.small{margin:10px 0}
+.figure-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
+.figure-card{background:var(--surface);border:1px solid var(--ai-bubble-border);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.figure-avatar{width:40px;height:40px;border-radius:50%;background:var(--surface-2);color:var(--ink);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700}
+.figure-card h3{margin:4px 0 0;font-size:1rem}
+.figure-card p{margin:0;color:var(--muted);font-size:.82rem}
+.btn-start{margin-top:8px;background:var(--accent);color:#fff;border:none;border-radius:999px;padding:8px 14px;font-size:.82rem;cursor:pointer}
+.empty{color:var(--muted);font-size:.9rem;padding:20px 0}
+.btn-back{background:none;border:none;color:var(--muted);font-size:.9rem;cursor:pointer;padding:8px 0;text-align:left}
+.chat-header{display:flex;align-items:center;gap:10px;padding:14px 0 4px;position:sticky;top:0;background:var(--bg);z-index:2}
+.chat-person{display:flex;flex-direction:column;min-width:0}
+.chat-person strong{font-family:var(--font-display);font-size:1rem}
+.chat-person span{font-size:.76rem;color:var(--muted)}
+.chat-log{flex:1;display:flex;flex-direction:column;gap:10px;padding:8px 0;overflow-y:auto;min-height:0}
+.bubble{max-width:78%;padding:10px 14px;border-radius:16px;font-size:.92rem;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.bubble-ai{align-self:flex-start;background:var(--ai-bubble);border:1px solid var(--ai-bubble-border);border-bottom-left-radius:4px}
+.bubble-user{align-self:flex-end;background:var(--user-bubble);color:var(--user-bubble-ink);border-bottom-right-radius:4px}
+.bubble-pending{opacity:.65}
+.chat-form{display:flex;gap:8px;padding:10px 0 4px;position:sticky;bottom:0;background:var(--bg)}
+.chat-form input{flex:1;min-width:0;font:inherit;font-family:var(--font-body);background:var(--surface);color:var(--ink);border:1px solid var(--ai-bubble-border);border-radius:999px;padding:12px 16px}
+.btn-send{background:var(--accent);color:#fff;border:none;border-radius:50%;width:44px;height:44px;flex:none;font-size:1rem;cursor:pointer}
+@media (max-width:420px){ .figure-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))} }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function(){
+  'use strict';
+
+  var SHELL_HTML = [
+    '<div class="app-shell">',
+    '  <header class="topbar">',
+    '    <div class="brand">',
+    '      <span class="brand-mark">AI</span>',
+    '      <div>',
+    '        <h1>AI 진로 면담실</h1>',
+    '        <p class="tagline">궁금한 점을 해결해요 · 진로 인물 면담 연습</p>',
+    '      </div>',
+    '    </div>',
+    '  </header>',
+    '  <main id="view-home" class="view">',
+    '    <p class="disclaimer">여기 나오는 인물은 실제 사람이 아니라, 선생님이 등록한 공개 인터뷰 자료를 바탕으로 답하는 AI예요.</p>',
+    '    <div id="figure-grid" class="figure-grid"></div>',
+    '  </main>',
+    '  <main id="view-chat" class="view" hidden>',
+    '    <div class="chat-header">',
+    '      <button class="btn-back" type="button" id="btn-back">←</button>',
+    '      <div class="chat-person"><strong id="chat-name"></strong><span id="chat-job"></span></div>',
+    '    </div>',
+    '    <p class="disclaimer small">공개된 인터뷰 자료를 바탕으로 답변하는 AI예요. 실제 인물의 말이 아닐 수 있어요.</p>',
+    '    <div id="chat-log" class="chat-log" aria-live="polite"></div>',
+    '    <form id="chat-form" class="chat-form">',
+    '      <input id="chat-input" autocomplete="off" placeholder="인사부터 시작해보세요" />',
+    '      <button type="submit" class="btn-send" aria-label="보내기">➤</button>',
+    '    </form>',
+    '  </main>',
+    '</div>'
+  ].join('\n');
+
+  var state = { figures: [], currentFigureId: null, messages: [] };
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+    });
+  }
+
+  function showView(name){
+    document.getElementById('view-home').hidden = (name !== 'home');
+    document.getElementById('view-chat').hidden = (name !== 'chat');
+  }
+
+  function renderHome(){
+    var grid = document.getElementById('figure-grid');
+    if(!state.figures.length){
+      grid.innerHTML = '<p class="empty">아직 등록된 면담 인물이 없어요. 선생님께 문의해주세요.</p>';
+      return;
+    }
+    grid.innerHTML = state.figures.map(function(f){
+      return '<article class="figure-card">'
+        + '<div class="figure-avatar">' + escapeHtml(f.name.slice(0,1)) + '</div>'
+        + '<h3>' + escapeHtml(f.name) + '</h3>'
+        + '<p>' + escapeHtml(f.job) + '</p>'
+        + '<button class="btn-start" type="button" data-id="' + escapeHtml(f.id) + '">면담 시작</button>'
+        + '</article>';
+    }).join('');
+  }
+
+  function openChat(figureId){
+    var f = state.figures.filter(function(x){ return x.id===figureId; })[0];
+    if(!f) return;
+    state.currentFigureId = figureId;
+    state.messages = [];
+    document.getElementById('chat-name').textContent = f.name;
+    document.getElementById('chat-job').textContent = f.job;
+    document.getElementById('chat-log').innerHTML = '';
+    showView('chat');
+    var input = document.getElementById('chat-input');
+    input.value = '';
+    setTimeout(function(){ input.focus(); }, 0);
+  }
+
+  function appendBubble(role, text){
+    var log = document.getElementById('chat-log');
+    var b = document.createElement('div');
+    b.className = 'bubble ' + (role==='user' ? 'bubble-user' : 'bubble-ai');
+    b.textContent = text;
+    log.appendChild(b);
+    log.scrollTop = log.scrollHeight;
+    return b;
+  }
+
+  function sendMessage(text){
+    state.messages.push({role:'user', content:text});
+    appendBubble('user', text);
+    var pending = appendBubble('ai', '...');
+    pending.classList.add('bubble-pending');
+
+    fetch('/api/chat', {
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body: JSON.stringify({ figureId: state.currentFigureId, messages: state.messages })
+    }).then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
+      .then(function(res){
+        if(!res.ok){
+          pending.textContent = (res.data && res.data.error) || '지금은 답하기 어려워요.';
+          pending.classList.remove('bubble-pending');
+          return;
+        }
+        var finalText = res.data.text || '음... 지금은 잘 답하기 어렵네요.';
+        pending.textContent = finalText;
+        pending.classList.remove('bubble-pending');
+        state.messages.push({role:'assistant', content: finalText});
+        pending.parentNode.scrollTop = pending.parentNode.scrollHeight;
+      }).catch(function(){
+        pending.textContent = '네트워크 문제로 답을 받지 못했어요. 다시 시도해주세요.';
+        pending.classList.remove('bubble-pending');
+      });
+  }
+
+  function wireEvents(){
+    document.body.addEventListener('click', function(e){
+      var startBtn = e.target.closest('.btn-start');
+      if(startBtn){ openChat(startBtn.getAttribute('data-id')); return; }
+      if(e.target.id === 'btn-back'){ showView('home'); return; }
+    });
+    document.getElementById('chat-form').addEventListener('submit', function(e){
+      e.preventDefault();
+      var input = document.getElementById('chat-input');
+      var text = input.value.trim();
+      if(!text) return;
+      input.value = '';
+      sendMessage(text);
+    });
+  }
+
+  function init(){
+    document.getElementById('root').innerHTML = SHELL_HTML;
+    wireEvents();
+    fetch('/api/figures').then(function(r){ return r.json(); }).then(function(data){
+      state.figures = (data && data.figures) || [];
+      renderHome();
+    }).catch(function(){
+      state.figures = [];
+      renderHome();
+    });
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>

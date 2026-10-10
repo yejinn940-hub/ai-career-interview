@@ -69,8 +69,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 .chat-form{display:flex;gap:8px;padding:10px 0 4px;position:sticky;bottom:0;background:var(--bg)}
 .chat-form input{flex:1;min-width:0;font:inherit;font-family:var(--font-body);background:var(--surface);color:var(--ink);border:1px solid var(--ai-bubble-border);border-radius:999px;padding:12px 16px}
 .btn-send{background:var(--accent);color:#fff;border:none;border-radius:50%;width:44px;height:44px;flex:none;font-size:1rem;cursor:pointer}
-.btn-restart{align-self:flex-start;background:none;border:1px solid var(--ai-bubble-border);color:var(--muted);font-size:.76rem;border-radius:999px;padding:6px 12px;cursor:pointer;margin:0 0 8px}
-.btn-archive-open{align-self:flex-start;background:var(--surface);border:1px solid var(--ai-bubble-border);color:var(--ink);font-size:.82rem;border-radius:999px;padding:8px 14px;cursor:pointer;margin:4px 0 16px;display:inline-flex;align-items:center;gap:6px}
+.chat-actions{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px}
+.chat-actions button{background:none;border:1px solid var(--ai-bubble-border);color:var(--muted);font-size:.76rem;border-radius:999px;padding:6px 12px;cursor:pointer}
+.chat-actions button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-archive-open{align-self:flex-start;background:var(--surface);border:1px solid var(--ai-bubble-border);color:var(--ink);font-size:.82rem;border-radius:999px;padding:8px 14px;cursor:pointer;margin:4px 8px 16px 0;display:inline-flex;align-items:center;gap:6px}
 .archive-list{display:flex;flex-direction:column;gap:10px}
 .archive-item{background:var(--surface);border:1px solid var(--ai-bubble-border);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:4px}
 .archive-item-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
@@ -80,6 +82,15 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 .archive-item-actions button{font-size:.78rem;border-radius:999px;padding:6px 12px;cursor:pointer;border:1px solid var(--ai-bubble-border);background:var(--surface-2);color:var(--ink)}
 .archive-item-actions button.danger{color:#B3432B;border-color:#B3432B}
 .archive-detail-log{flex:1;display:flex;flex-direction:column;gap:10px;padding:8px 0;overflow-y:auto}
+.room-form{display:flex;flex-direction:column;gap:12px;max-width:360px}
+.room-form label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.room-form input{font:inherit;font-family:var(--font-body);background:var(--surface);color:var(--ink);border:1px solid var(--ai-bubble-border);border-radius:10px;padding:10px 12px}
+.room-form .row{display:flex;gap:8px}
+.room-form .row label{flex:1}
+.btn-join{background:var(--accent);color:#fff;border:none;border-radius:999px;padding:10px 16px;font-size:.9rem;cursor:pointer;margin-top:4px}
+.room-badge{background:var(--surface-2);color:var(--muted);font-size:.78rem;padding:8px 12px;border-radius:12px;margin:4px 0 12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.room-badge button{background:none;border:none;color:var(--accent);font-size:.78rem;cursor:pointer;text-decoration:underline}
+.form-error{color:#B3432B;font-size:.82rem}
 @media (max-width:420px){ .figure-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))} }
 </style>
 </head>
@@ -100,9 +111,27 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '      </div>',
     '    </div>',
     '  </header>',
-    '  <main id="view-home" class="view">',
+    '  <main id="view-join" class="view">',
+    '    <p class="disclaimer">선생님이 만든 반에 입장할게요. 학교/학년/반 정보는 선생님께 확인해주세요.</p>',
+    '    <form id="join-form" class="room-form">',
+    '      <label>학교 이름<input id="join-school" autocomplete="off" placeholder="예: 낙민초등학교" /></label>',
+    '      <div class="row">',
+    '        <label>학년<input id="join-grade" autocomplete="off" placeholder="예: 6" /></label>',
+    '        <label>반<input id="join-class" autocomplete="off" placeholder="예: 3" /></label>',
+    '      </div>',
+    '      <label>모둠 이름<input id="join-group" autocomplete="off" placeholder="예: 1모둠" /></label>',
+    '      <p id="join-error" class="form-error" hidden></p>',
+    '      <button type="submit" class="btn-join">입장하기</button>',
+    '    </form>',
+    '    <p class="disclaimer small"><a href="/teacher.html">선생님이신가요? 반 만들기 →</a></p>',
+    '  </main>',
+    '  <main id="view-home" class="view" hidden>',
+    '    <div id="room-badge" class="room-badge"></div>',
     '    <p class="disclaimer">여기 나오는 인물은 실제 사람이 아니라, 선생님이 등록한 공개 인터뷰 자료를 바탕으로 답하는 AI예요.</p>',
-    '    <button class="btn-archive-open" type="button" id="btn-archive-open">📁 저장된 면담 기록</button>',
+    '    <div>',
+    '      <button class="btn-archive-open" type="button" id="btn-archive-open">📁 저장된 면담 기록</button>',
+    '      <button class="btn-archive-open" type="button" id="btn-shared-open">🏫 학급에 공유된 면담</button>',
+    '    </div>',
     '    <div id="figure-grid" class="figure-grid"></div>',
     '  </main>',
     '  <main id="view-chat" class="view" hidden>',
@@ -110,8 +139,11 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '      <button class="btn-back" type="button" id="btn-back">←</button>',
     '      <div class="chat-person"><strong id="chat-name"></strong><span id="chat-job"></span></div>',
     '    </div>',
-    '    <p class="disclaimer small">공개된 인터뷰 자료를 바탕으로 답변하는 AI예요. 실제 인물의 말이 아닐 수 있어요.</p>',
-    '    <button class="btn-restart" type="button" id="btn-restart">↺ 이 면담 저장하고 새로 시작하기</button>',
+    '    <p class="disclaimer small">공개된 인터뷰 자료를 바탕으로 답변하는 AI예요. 실제 인물의 말이 아닐 수 있어요. 대화는 자동으로 저장돼요.</p>',
+    '    <div class="chat-actions">',
+    '      <button type="button" id="btn-restart">🔄 새 면담 시작</button>',
+    '      <button type="button" id="btn-submit" class="primary">📨 면담자료제출</button>',
+    '    </div>',
     '    <div id="chat-log" class="chat-log" aria-live="polite"></div>',
     '    <form id="chat-form" class="chat-form">',
     '      <input id="chat-input" autocomplete="off" placeholder="인사부터 시작해보세요" />',
@@ -124,6 +156,12 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '    <p class="disclaimer small">이 기기(브라우저)에만 저장돼요. 다른 기기에서는 보이지 않아요.</p>',
     '    <div id="archive-list" class="archive-list"></div>',
     '  </main>',
+    '  <main id="view-shared" class="view" hidden>',
+    '    <button class="btn-back" type="button" id="btn-shared-back">← 홈으로</button>',
+    '    <h2 style="font-family:var(--font-display);font-size:1.05rem;margin:4px 0 10px">학급에 공유된 면담</h2>',
+    '    <p class="disclaimer small">선생님이 반 전체와 공유한 면담 예시예요.</p>',
+    '    <div id="shared-list" class="archive-list"></div>',
+    '  </main>',
     '  <main id="view-archive-detail" class="view" hidden>',
     '    <button class="btn-back" type="button" id="btn-archive-detail-back">← 목록으로</button>',
     '    <div class="chat-header">',
@@ -134,10 +172,12 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '</div>'
   ].join('\n');
 
-  var state = { figures: [], currentFigureId: null, currentFigureName: '', currentFigureJob: '', messages: [] };
+  var state = { figures: [], currentFigureId: null, currentFigureName: '', currentFigureJob: '', messages: [], conversationId: null, room: null };
   var STORAGE_KEY = 'ai-interview-progress-v1';
   var ARCHIVE_KEY = 'ai-interview-archive-v1';
+  var ROOM_KEY = 'ai-interview-room-v1';
   var ARCHIVE_MAX = 50;
+  var DETAIL_RETURN_VIEW = 'archive';
 
   function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, function(c){
@@ -145,10 +185,40 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     });
   }
 
+  function genId(){ return 'c' + Date.now() + Math.floor(Math.random()*100000); }
+
+  // ---------- 반(room) ----------
+  function loadRoom(){
+    try{
+      var raw = localStorage.getItem(ROOM_KEY);
+      if(!raw) return null;
+      var r = JSON.parse(raw);
+      if(!r || !r.school || !r.grade || !r.classNum || !r.groupName) return null;
+      return r;
+    }catch(e){ return null; }
+  }
+
+  function saveRoom(r){
+    try{ localStorage.setItem(ROOM_KEY, JSON.stringify(r)); }catch(e){ /* noop */ }
+  }
+
+  function clearRoom(){
+    try{ localStorage.removeItem(ROOM_KEY); }catch(e){ /* noop */ }
+  }
+
+  function renderRoomBadge(){
+    var el = document.getElementById('room-badge');
+    if(!state.room){ el.innerHTML = ''; return; }
+    el.innerHTML = '<span>' + escapeHtml(state.room.school) + ' ' + escapeHtml(state.room.grade) + '학년 ' + escapeHtml(state.room.classNum) + '반 · '
+      + escapeHtml(state.room.groupName) + '</span><button type="button" id="btn-room-change">반 바꾸기</button>';
+  }
+
+  // ---------- 진행 중 대화 자동저장(복구용) ----------
   function saveProgress(){
     try{
       if(!state.currentFigureId){ return; }
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        conversationId: state.conversationId,
         figureId: state.currentFigureId,
         figureName: state.currentFigureName,
         figureJob: state.currentFigureJob,
@@ -171,6 +241,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     try{ localStorage.removeItem(STORAGE_KEY); }catch(e){ /* noop */ }
   }
 
+  // ---------- 기기 내 전체 기록 보관함 (모든 대화 자동 upsert) ----------
   function loadArchive(){
     try{
       var raw = localStorage.getItem(ARCHIVE_KEY);
@@ -179,22 +250,31 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     }catch(e){ return []; }
   }
 
-  function saveArchive(list){
+  function saveArchiveList(list){
     try{ localStorage.setItem(ARCHIVE_KEY, JSON.stringify(list.slice(0, ARCHIVE_MAX))); }catch(e){ /* noop */ }
   }
 
-  function archiveCurrentConversation(){
-    if(!state.currentFigureId || !state.messages.length) return;
+  function upsertArchive(){
+    if(!state.conversationId || !state.messages.length) return;
     var list = loadArchive();
-    list.unshift({
-      id: 'a' + Date.now() + Math.floor(Math.random()*1000),
-      figureId: state.currentFigureId,
-      figureName: state.currentFigureName,
-      figureJob: state.currentFigureJob,
-      messages: state.messages,
-      savedAt: new Date().toISOString()
-    });
-    saveArchive(list);
+    var rec = list.filter(function(x){ return x.id === state.conversationId; })[0];
+    if(rec){
+      rec.figureName = state.currentFigureName;
+      rec.figureJob = state.currentFigureJob;
+      rec.messages = state.messages;
+      rec.updatedAt = new Date().toISOString();
+    }else{
+      list.unshift({
+        id: state.conversationId,
+        figureId: state.currentFigureId,
+        figureName: state.currentFigureName,
+        figureJob: state.currentFigureJob,
+        messages: state.messages,
+        savedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
+    saveArchiveList(list);
   }
 
   function formatSavedAt(iso){
@@ -208,54 +288,47 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     }catch(e){ return ''; }
   }
 
-  function showView(name){
-    document.getElementById('view-home').hidden = (name !== 'home');
-    document.getElementById('view-chat').hidden = (name !== 'chat');
-    document.getElementById('view-archive').hidden = (name !== 'archive');
-    document.getElementById('view-archive-detail').hidden = (name !== 'archive-detail');
+  // ---------- 서버 동기화 (선생님이 전체 열람) ----------
+  function syncToServer(){
+    if(!state.room || !state.conversationId || !state.messages.length) return;
+    fetch('/api/submissions', {
+      method: 'POST',
+      headers: {'content-type':'application/json'},
+      body: JSON.stringify({
+        action: 'sync',
+        school: state.room.school, grade: state.room.grade, classNum: state.room.classNum,
+        groupName: state.room.groupName,
+        id: state.conversationId,
+        figureId: state.currentFigureId, figureName: state.currentFigureName, figureJob: state.currentFigureJob,
+        messages: state.messages
+      })
+    }).catch(function(){ /* 네트워크 문제는 조용히 무시, 기기 내 저장은 유지됨 */ });
   }
 
-  function renderArchiveList(){
-    var list = loadArchive();
-    var wrap = document.getElementById('archive-list');
-    if(!list.length){
-      wrap.innerHTML = '<p class="empty">아직 저장된 면담이 없어요. 면담을 마치면 "저장하고 새로 시작하기"로 기록을 남길 수 있어요.</p>';
-      return;
-    }
-    wrap.innerHTML = list.map(function(item){
-      var count = item.messages ? item.messages.length : 0;
-      return '<div class="archive-item" data-id="' + escapeHtml(item.id) + '">'
-        + '<div class="archive-item-top"><strong>' + escapeHtml(item.figureName || '') + '</strong>'
-        + '<span class="archive-item-meta">' + escapeHtml(formatSavedAt(item.savedAt)) + '</span></div>'
-        + '<span class="archive-item-meta">' + escapeHtml(item.figureJob || '') + ' · 메시지 ' + count + '개</span>'
-        + '<div class="archive-item-actions">'
-        + '<button type="button" class="btn-archive-view" data-id="' + escapeHtml(item.id) + '">보기</button>'
-        + '<button type="button" class="btn-archive-delete danger" data-id="' + escapeHtml(item.id) + '">삭제</button>'
-        + '</div></div>';
-    }).join('');
-  }
-
-  function openArchiveDetail(id){
-    var list = loadArchive();
-    var item = list.filter(function(x){ return x.id === id; })[0];
-    if(!item) return;
-    document.getElementById('archive-detail-name').textContent = item.figureName || '';
-    document.getElementById('archive-detail-job').textContent = item.figureJob || '';
-    var log = document.getElementById('archive-detail-log');
-    log.innerHTML = '';
-    (item.messages || []).forEach(function(m){
-      var b = document.createElement('div');
-      b.className = 'bubble ' + (m.role==='user' ? 'bubble-user' : 'bubble-ai');
-      b.textContent = m.content;
-      log.appendChild(b);
+  function submitToTeacher(){
+    if(!state.room || !state.conversationId){ return; }
+    var btn = document.getElementById('btn-submit');
+    btn.disabled = true;
+    btn.textContent = '제출 중...';
+    fetch('/api/submissions', {
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body: JSON.stringify({ action:'submit', school: state.room.school, grade: state.room.grade, classNum: state.room.classNum, id: state.conversationId })
+    }).then(function(r){ return r.json(); }).then(function(data){
+      btn.disabled = false;
+      btn.textContent = (data && data.ok) ? '✅ 제출 완료' : '📨 면담자료제출';
+      if(!(data && data.ok)){ alert((data && data.error) || '제출에 실패했어요. 다시 시도해주세요.'); }
+    }).catch(function(){
+      btn.disabled = false;
+      btn.textContent = '📨 면담자료제출';
+      alert('네트워크 문제로 제출하지 못했어요. 다시 시도해주세요.');
     });
-    showView('archive-detail');
   }
 
-  function deleteArchiveItem(id){
-    var list = loadArchive().filter(function(x){ return x.id !== id; });
-    saveArchive(list);
-    renderArchiveList();
+  function showView(name){
+    ['join','home','chat','archive','shared','archive-detail'].forEach(function(v){
+      document.getElementById('view-' + v).hidden = (v !== name);
+    });
   }
 
   function renderHome(){
@@ -274,26 +347,31 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     }).join('');
   }
 
-  function openChat(figureId, resumeMessages){
+  function renderBubbles(container, messages){
+    container.innerHTML = '';
+    messages.forEach(function(m){
+      var b = document.createElement('div');
+      b.className = 'bubble ' + (m.role==='user' ? 'bubble-user' : 'bubble-ai');
+      b.textContent = m.content;
+      container.appendChild(b);
+    });
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function openChat(figureId, resumeMessages, resumeId){
     var f = state.figures.filter(function(x){ return x.id===figureId; })[0];
     if(!f) return;
     state.currentFigureId = figureId;
     state.currentFigureName = f.name;
     state.currentFigureJob = f.job;
     state.messages = Array.isArray(resumeMessages) ? resumeMessages.slice() : [];
+    state.conversationId = resumeId || genId();
     document.getElementById('chat-name').textContent = f.name;
     document.getElementById('chat-job').textContent = f.job;
-    var log = document.getElementById('chat-log');
-    log.innerHTML = '';
-    state.messages.forEach(function(m){
-      var b = document.createElement('div');
-      b.className = 'bubble ' + (m.role==='user' ? 'bubble-user' : 'bubble-ai');
-      b.textContent = m.content;
-      log.appendChild(b);
-    });
-    log.scrollTop = log.scrollHeight;
+    document.getElementById('btn-submit').disabled = false;
+    document.getElementById('btn-submit').textContent = '📨 면담자료제출';
+    renderBubbles(document.getElementById('chat-log'), state.messages);
     showView('chat');
-    if(!state.messages.length){ saveProgress(); }
     var input = document.getElementById('chat-input');
     input.value = '';
     setTimeout(function(){ input.focus(); }, 0);
@@ -309,9 +387,15 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     return b;
   }
 
+  function persistAll(){
+    saveProgress();
+    upsertArchive();
+    syncToServer();
+  }
+
   function sendMessage(text){
     state.messages.push({role:'user', content:text});
-    saveProgress();
+    persistAll();
     appendBubble('user', text);
     var pending = appendBubble('ai', '...');
     pending.classList.add('bubble-pending');
@@ -331,7 +415,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
         pending.textContent = finalText;
         pending.classList.remove('bubble-pending');
         state.messages.push({role:'assistant', content: finalText});
-        saveProgress();
+        persistAll();
         pending.parentNode.scrollTop = pending.parentNode.scrollHeight;
       }).catch(function(){
         pending.textContent = '네트워크 문제로 답을 받지 못했어요. 다시 시도해주세요.';
@@ -339,35 +423,179 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       });
   }
 
+  // ---------- 기기 내 보관함 화면 ----------
+  function renderArchiveList(){
+    var list = loadArchive();
+    var wrap = document.getElementById('archive-list');
+    if(!list.length){
+      wrap.innerHTML = '<p class="empty">아직 저장된 면담이 없어요. 면담을 시작하면 자동으로 저장돼요.</p>';
+      return;
+    }
+    wrap.innerHTML = list.map(function(item){
+      var count = item.messages ? item.messages.length : 0;
+      return '<div class="archive-item">'
+        + '<div class="archive-item-top"><strong>' + escapeHtml(item.figureName || '') + '</strong>'
+        + '<span class="archive-item-meta">' + escapeHtml(formatSavedAt(item.updatedAt || item.savedAt)) + '</span></div>'
+        + '<span class="archive-item-meta">' + escapeHtml(item.figureJob || '') + ' · 메시지 ' + count + '개</span>'
+        + '<div class="archive-item-actions">'
+        + '<button type="button" class="btn-archive-view" data-id="' + escapeHtml(item.id) + '">보기</button>'
+        + '<button type="button" class="btn-archive-resume" data-id="' + escapeHtml(item.id) + '">이어하기</button>'
+        + '<button type="button" class="btn-archive-delete danger" data-id="' + escapeHtml(item.id) + '">삭제</button>'
+        + '</div></div>';
+    }).join('');
+  }
+
+  function openArchiveDetail(id){
+    var list = loadArchive();
+    var item = list.filter(function(x){ return x.id === id; })[0];
+    if(!item) return;
+    document.getElementById('archive-detail-name').textContent = item.figureName || '';
+    document.getElementById('archive-detail-job').textContent = item.figureJob || '';
+    renderBubbles(document.getElementById('archive-detail-log'), item.messages || []);
+    DETAIL_RETURN_VIEW = 'archive';
+    showView('archive-detail');
+  }
+
+  function resumeArchiveItem(id){
+    var list = loadArchive();
+    var item = list.filter(function(x){ return x.id === id; })[0];
+    if(!item) return;
+    openChat(item.figureId, item.messages, item.id);
+  }
+
+  function deleteArchiveItem(id){
+    var list = loadArchive().filter(function(x){ return x.id !== id; });
+    saveArchiveList(list);
+    renderArchiveList();
+  }
+
+  // ---------- 학급 공유 화면 ----------
+  function renderSharedList(){
+    var wrap = document.getElementById('shared-list');
+    wrap.innerHTML = '<p class="empty">불러오는 중...</p>';
+    if(!state.room){ wrap.innerHTML = '<p class="empty">반 정보가 없어요.</p>'; return; }
+    fetch('/api/submissions', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ action:'shared-list', school: state.room.school, grade: state.room.grade, classNum: state.room.classNum })
+    }).then(function(r){ return r.json(); }).then(function(data){
+      var items = (data && data.items) || [];
+      if(!items.length){ wrap.innerHTML = '<p class="empty">아직 선생님이 공유한 면담이 없어요.</p>'; return; }
+      window.__sharedItems = items;
+      wrap.innerHTML = items.map(function(item){
+        return '<div class="archive-item">'
+          + '<div class="archive-item-top"><strong>' + escapeHtml(item.figureName || '') + '</strong>'
+          + '<span class="archive-item-meta">' + escapeHtml(formatSavedAt(item.updatedAt)) + '</span></div>'
+          + '<span class="archive-item-meta">' + escapeHtml(item.groupName || '') + '</span>'
+          + '<div class="archive-item-actions">'
+          + '<button type="button" class="btn-shared-view" data-id="' + escapeHtml(item.id) + '">보기</button>'
+          + '</div></div>';
+      }).join('');
+    }).catch(function(){ wrap.innerHTML = '<p class="empty">불러오지 못했어요.</p>'; });
+  }
+
+  function openSharedDetail(id){
+    var items = window.__sharedItems || [];
+    var item = items.filter(function(x){ return x.id === id; })[0];
+    if(!item) return;
+    document.getElementById('archive-detail-name').textContent = item.figureName || '';
+    document.getElementById('archive-detail-job').textContent = (item.groupName || '') + ' 모둠의 면담';
+    renderBubbles(document.getElementById('archive-detail-log'), item.messages || []);
+    DETAIL_RETURN_VIEW = 'shared';
+    showView('archive-detail');
+  }
+
+  // ---------- 입장 처리 ----------
+  function showJoinError(msg){
+    var el = document.getElementById('join-error');
+    el.textContent = msg;
+    el.hidden = !msg;
+  }
+
+  function handleJoinSubmit(e){
+    e.preventDefault();
+    var school = document.getElementById('join-school').value.trim();
+    var grade = document.getElementById('join-grade').value.trim();
+    var classNum = document.getElementById('join-class').value.trim();
+    var groupName = document.getElementById('join-group').value.trim();
+    if(!school || !grade || !classNum || !groupName){
+      showJoinError('모든 칸을 입력해주세요.');
+      return;
+    }
+    showJoinError('');
+    fetch('/api/room', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ action:'student-join', school:school, grade:grade, classNum:classNum, groupName:groupName })
+    }).then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
+      .then(function(res){
+        if(!res.ok || !(res.data && res.data.ok)){
+          showJoinError((res.data && res.data.error) || '입장에 실패했어요.');
+          return;
+        }
+        var room = { school:school, grade:grade, classNum:classNum, groupName:groupName, teacherName: res.data.room.teacherName };
+        state.room = room;
+        saveRoom(room);
+        enterApp();
+      }).catch(function(){ showJoinError('네트워크 문제로 입장하지 못했어요.'); });
+  }
+
+  function enterApp(){
+    renderRoomBadge();
+    showView('home');
+    var saved = loadProgress();
+    if(saved && state.figures.some(function(f){ return f.id === saved.figureId; })){
+      openChat(saved.figureId, saved.messages, saved.conversationId);
+    }
+  }
+
   function wireEvents(){
+    document.getElementById('join-form').addEventListener('submit', handleJoinSubmit);
+
     document.body.addEventListener('click', function(e){
       var startBtn = e.target.closest('.btn-start');
-      if(startBtn){
-        archiveCurrentConversation();
-        clearProgress();
-        openChat(startBtn.getAttribute('data-id'));
-        return;
-      }
+      if(startBtn){ clearProgress(); openChat(startBtn.getAttribute('data-id')); return; }
+
       if(e.target.id === 'btn-back'){ showView('home'); return; }
+
       if(e.target.id === 'btn-restart'){
-        if(!confirm('지금까지의 면담 내용을 저장하고 새로 시작할까요?')) return;
-        archiveCurrentConversation();
+        if(!confirm('새 면담을 시작할까요? (지금까지의 대화는 자동으로 저장되어 있어요)')) return;
         clearProgress();
         openChat(state.currentFigureId);
         return;
       }
+      if(e.target.id === 'btn-submit'){ submitToTeacher(); return; }
+
+      if(e.target.id === 'btn-room-change'){
+        if(!confirm('다른 반으로 바꿀까요?')) return;
+        clearRoom();
+        state.room = null;
+        showView('join');
+        return;
+      }
+
       if(e.target.id === 'btn-archive-open'){ renderArchiveList(); showView('archive'); return; }
       if(e.target.id === 'btn-archive-back'){ showView('home'); return; }
-      if(e.target.id === 'btn-archive-detail-back'){ renderArchiveList(); showView('archive'); return; }
+      if(e.target.id === 'btn-archive-detail-back'){
+        if(DETAIL_RETURN_VIEW === 'shared'){ renderSharedList(); showView('shared'); }
+        else { renderArchiveList(); showView('archive'); }
+        return;
+      }
       var viewBtn = e.target.closest('.btn-archive-view');
       if(viewBtn){ openArchiveDetail(viewBtn.getAttribute('data-id')); return; }
+      var resumeBtn = e.target.closest('.btn-archive-resume');
+      if(resumeBtn){ resumeArchiveItem(resumeBtn.getAttribute('data-id')); return; }
       var delBtn = e.target.closest('.btn-archive-delete');
       if(delBtn){
         if(!confirm('이 면담 기록을 삭제할까요?')) return;
         deleteArchiveItem(delBtn.getAttribute('data-id'));
         return;
       }
+
+      if(e.target.id === 'btn-shared-open'){ renderSharedList(); showView('shared'); return; }
+      if(e.target.id === 'btn-shared-back'){ showView('home'); return; }
+      var sharedViewBtn = e.target.closest('.btn-shared-view');
+      if(sharedViewBtn){ openSharedDetail(sharedViewBtn.getAttribute('data-id')); return; }
     });
+
     document.getElementById('chat-form').addEventListener('submit', function(e){
       e.preventDefault();
       var input = document.getElementById('chat-input');
@@ -376,21 +604,24 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       input.value = '';
       sendMessage(text);
     });
+
+    window.addEventListener('beforeunload', function(){
+      syncToServer();
+    });
   }
 
   function init(){
     document.getElementById('root').innerHTML = SHELL_HTML;
     wireEvents();
+    state.room = loadRoom();
     fetch('/api/figures').then(function(r){ return r.json(); }).then(function(data){
       state.figures = (data && data.figures) || [];
       renderHome();
-      var saved = loadProgress();
-      if(saved && state.figures.some(function(f){ return f.id === saved.figureId; })){
-        openChat(saved.figureId, saved.messages);
-      }
+      if(state.room){ enterApp(); } else { showView('join'); }
     }).catch(function(){
       state.figures = [];
       renderHome();
+      if(state.room){ enterApp(); } else { showView('join'); }
     });
   }
 

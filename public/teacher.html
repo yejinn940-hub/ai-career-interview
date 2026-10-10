@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 진로 면담실 · 선생님 페이지</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#F2F4F8;
+  --surface:#FFFFFF;
+  --surface-2:#E6EAF1;
+  --ink:#1C2430;
+  --muted:#667085;
+  --accent:#2B6CB0;
+  --user-bubble:#FFE8C2;
+  --user-bubble-ink:#5C3C10;
+  --ai-bubble:#FFFFFF;
+  --ai-bubble-border:#E1E5EC;
+  --radius:16px;
+  --font-display:'Gowun Dodum','Apple SD Gothic Neo',sans-serif;
+  --font-body:'Noto Sans KR','Apple SD Gothic Neo',sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --bg:#121722;
+    --surface:#1B222E;
+    --surface-2:#242D3B;
+    --ink:#E8ECF2;
+    --muted:#98A2B3;
+    --accent:#5B9BD5;
+    --user-bubble:#3A2E18;
+    --user-bubble-ink:#FCE8C2;
+    --ai-bubble:#1F2733;
+    --ai-bubble-border:#2E3847;
+  }
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)}
+.app-shell{max-width:760px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+.topbar{padding:20px 20px 8px;display:flex;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand-mark{width:40px;height:40px;border-radius:12px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;flex:none}
+.topbar h1{font-family:var(--font-display);font-size:1.2rem;margin:0}
+.tagline{margin:2px 0 0;color:var(--muted);font-size:.8rem}
+.view{padding:0 20px 24px;flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+[hidden]{display:none!important}
+.disclaimer{background:var(--surface-2);color:var(--muted);font-size:.78rem;padding:10px 14px;border-radius:12px;margin:8px 0 16px}
+.room-form{display:flex;flex-direction:column;gap:12px;max-width:380px}
+.room-form label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.room-form input{font:inherit;font-family:var(--font-body);background:var(--surface);color:var(--ink);border:1px solid var(--ai-bubble-border);border-radius:10px;padding:10px 12px}
+.room-form .row{display:flex;gap:8px}
+.room-form .row label{flex:1}
+.btn-primary{background:var(--accent);color:#fff;border:none;border-radius:999px;padding:10px 16px;font-size:.9rem;cursor:pointer;margin-top:4px}
+.form-error{color:#B3432B;font-size:.82rem}
+.btn-back{background:none;border:none;color:var(--muted);font-size:.9rem;cursor:pointer;padding:8px 0;text-align:left}
+.room-badge{background:var(--surface-2);color:var(--muted);font-size:.82rem;padding:10px 14px;border-radius:12px;margin:4px 0 14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.room-badge button{background:none;border:none;color:var(--accent);font-size:.78rem;cursor:pointer;text-decoration:underline}
+.sub-list{display:flex;flex-direction:column;gap:10px}
+.sub-item{background:var(--surface);border:1px solid var(--ai-bubble-border);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.sub-item-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.sub-item-top strong{font-family:var(--font-display);font-size:1rem}
+.sub-item-meta{color:var(--muted);font-size:.76rem}
+.badge{display:inline-block;font-size:.7rem;border-radius:999px;padding:2px 9px;margin-left:6px}
+.badge.in_progress{background:#FEF0C7;color:#92590B}
+.badge.submitted{background:#D1FADF;color:#136C3F}
+.badge.shared{background:#D6E4FF;color:#2B4ACB}
+.sub-item-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.sub-item-actions button{font-size:.78rem;border-radius:999px;padding:6px 12px;cursor:pointer;border:1px solid var(--ai-bubble-border);background:var(--surface-2);color:var(--ink)}
+.sub-item-actions button.danger{color:#B3432B;border-color:#B3432B}
+.sub-item-actions button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.empty{color:var(--muted);font-size:.9rem;padding:20px 0}
+.chat-log{flex:1;display:flex;flex-direction:column;gap:10px;padding:8px 0;overflow-y:auto}
+.bubble{max-width:78%;padding:10px 14px;border-radius:16px;font-size:.92rem;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.bubble-ai{align-self:flex-start;background:var(--ai-bubble);border:1px solid var(--ai-bubble-border);border-bottom-left-radius:4px}
+.bubble-user{align-self:flex-end;background:var(--user-bubble);color:var(--user-bubble-ink);border-bottom-right-radius:4px}
+.toolbar{display:flex;gap:8px;margin-bottom:8px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function(){
+  'use strict';
+
+  var SHELL_HTML = [
+    '<div class="app-shell">',
+    '  <header class="topbar">',
+    '    <div class="brand">',
+    '      <span class="brand-mark">T</span>',
+    '      <div>',
+    '        <h1>선생님 페이지</h1>',
+    '        <p class="tagline">반 만들기 · 면담 제출함</p>',
+    '      </div>',
+    '    </div>',
+    '  </header>',
+    '  <main id="view-login" class="view">',
+    '    <p class="disclaimer">학교/학년/반 정보와 PIN으로 반을 만들거나 들어가요. 처음 만들 때 입력한 PIN을 꼭 기억해주세요.</p>',
+    '    <form id="login-form" class="room-form">',
+    '      <label>학교 이름<input id="f-school" autocomplete="off" placeholder="예: 낙민초등학교" /></label>',
+    '      <div class="row">',
+    '        <label>학년<input id="f-grade" autocomplete="off" placeholder="예: 6" /></label>',
+    '        <label>반<input id="f-class" autocomplete="off" placeholder="예: 3" /></label>',
+    '      </div>',
+    '      <label>선생님 성함<input id="f-name" autocomplete="off" placeholder="예: 김예진" /></label>',
+    '      <label>PIN (4자리 이상)<input id="f-pin" type="password" inputmode="numeric" autocomplete="off" placeholder="숫자 4자리 이상" /></label>',
+    '      <p id="login-error" class="form-error" hidden></p>',
+    '      <button type="submit" class="btn-primary">반 만들기 / 들어가기</button>',
+    '    </form>',
+    '    <p class="disclaimer small"><a href="/">← 학생 페이지로</a></p>',
+    '  </main>',
+    '  <main id="view-dashboard" class="view" hidden>',
+    '    <div id="room-badge" class="room-badge"></div>',
+    '    <div class="toolbar">',
+    '      <button type="button" id="btn-refresh" class="btn-primary">↻ 새로고침</button>',
+    '    </div>',
+    '    <div id="sub-list" class="sub-list"></div>',
+    '  </main>',
+    '  <main id="view-detail" class="view" hidden>',
+    '    <button class="btn-back" type="button" id="btn-detail-back">← 목록으로</button>',
+    '    <h2 id="detail-title" style="font-family:var(--font-display);font-size:1.05rem;margin:4px 0 10px"></h2>',
+    '    <div id="detail-log" class="chat-log"></div>',
+    '  </main>',
+    '</div>'
+  ].join('\n');
+
+  var state = { auth: null, items: [] };
+  var AUTH_KEY = 'ai-interview-teacher-auth-v1';
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+    });
+  }
+
+  function loadAuth(){
+    try{
+      var raw = localStorage.getItem(AUTH_KEY);
+      if(!raw) return null;
+      var a = JSON.parse(raw);
+      if(!a || !a.school || !a.grade || !a.classNum || !a.pin) return null;
+      return a;
+    }catch(e){ return null; }
+  }
+  function saveAuth(a){ try{ localStorage.setItem(AUTH_KEY, JSON.stringify(a)); }catch(e){} }
+  function clearAuth(){ try{ localStorage.removeItem(AUTH_KEY); }catch(e){} }
+
+  function showView(name){
+    ['login','dashboard','detail'].forEach(function(v){
+      document.getElementById('view-' + v).hidden = (v !== name);
+    });
+  }
+
+  function showLoginError(msg){
+    var el = document.getElementById('login-error');
+    el.textContent = msg;
+    el.hidden = !msg;
+  }
+
+  function statusLabel(s){
+    return s === 'submitted' ? '제출됨' : '진행중';
+  }
+
+  function formatAt(iso){
+    try{
+      var d = new Date(iso);
+      var mm = String(d.getMonth()+1).padStart(2,'0');
+      var dd = String(d.getDate()).padStart(2,'0');
+      var hh = String(d.getHours()).padStart(2,'0');
+      var mi = String(d.getMinutes()).padStart(2,'0');
+      return mm + '/' + dd + ' ' + hh + ':' + mi;
+    }catch(e){ return ''; }
+  }
+
+  function renderRoomBadge(room){
+    var el = document.getElementById('room-badge');
+    el.innerHTML = '<span>' + escapeHtml(room.school) + ' ' + escapeHtml(room.grade) + '학년 ' + escapeHtml(room.classNum) + '반 · '
+      + escapeHtml(room.teacherName || '') + ' 선생님</span><button type="button" id="btn-logout">다른 반으로</button>';
+  }
+
+  function loadDashboard(){
+    var wrap = document.getElementById('sub-list');
+    wrap.innerHTML = '<p class="empty">불러오는 중...</p>';
+    fetch('/api/submissions', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ action:'teacher-list', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin })
+    }).then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
+      .then(function(res){
+        if(!res.ok || !(res.data && res.data.ok)){
+          wrap.innerHTML = '<p class="empty">' + escapeHtml((res.data && res.data.error) || '불러오지 못했어요.') + '</p>';
+          return;
+        }
+        state.items = res.data.items || [];
+        renderRoomBadge({ school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, teacherName: res.data.teacherName });
+        renderSubList();
+      }).catch(function(){ wrap.innerHTML = '<p class="empty">네트워크 문제로 불러오지 못했어요.</p>'; });
+  }
+
+  function renderSubList(){
+    var wrap = document.getElementById('sub-list');
+    if(!state.items.length){
+      wrap.innerHTML = '<p class="empty">아직 학생들이 보낸 면담 기록이 없어요. 학생이 면담을 시작하면 자동으로 여기에 나타나요.</p>';
+      return;
+    }
+    wrap.innerHTML = state.items.map(function(x){
+      return '<div class="sub-item" data-id="' + escapeHtml(x.id) + '">'
+        + '<div class="sub-item-top"><strong>' + escapeHtml(x.groupName || '') + '</strong>'
+        + '<span class="badge ' + x.status + '">' + statusLabel(x.status) + '</span>'
+        + (x.shared ? '<span class="badge shared">학급 공유중</span>' : '')
+        + '</div>'
+        + '<span class="sub-item-meta">' + escapeHtml(x.figureName || '') + ' · ' + escapeHtml(x.figureJob || '') + ' · 메시지 ' + x.messageCount + '개 · 최근 수정 ' + formatAt(x.updatedAt) + '</span>'
+        + '<div class="sub-item-actions">'
+        + '<button type="button" class="act-view" data-id="' + escapeHtml(x.id) + '">보기</button>'
+        + '<button type="button" class="act-rename" data-id="' + escapeHtml(x.id) + '">이름 바꾸기</button>'
+        + '<button type="button" class="act-share ' + (x.shared ? 'active' : '') + '" data-id="' + escapeHtml(x.id) + '" data-shared="' + (x.shared ? '0' : '1') + '">' + (x.shared ? '공유 해제' : '학급에 공유하기') + '</button>'
+        + '<button type="button" class="act-delete danger" data-id="' + escapeHtml(x.id) + '">삭제</button>'
+        + '</div></div>';
+    }).join('');
+  }
+
+  function openDetail(id){
+    fetch('/api/submissions', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ action:'teacher-get', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id })
+    }).then(function(r){ return r.json(); }).then(function(data){
+      if(!data || !data.ok){ alert((data && data.error) || '불러오지 못했어요.'); return; }
+      var item = data.item;
+      document.getElementById('detail-title').textContent = (item.groupName || '') + ' · ' + (item.figureName || '');
+      var log = document.getElementById('detail-log');
+      log.innerHTML = '';
+      (item.messages || []).forEach(function(m){
+        var b = document.createElement('div');
+        b.className = 'bubble ' + (m.role==='user' ? 'bubble-user' : 'bubble-ai');
+        b.textContent = m.content;
+        log.appendChild(b);
+      });
+      showView('detail');
+    }).catch(function(){ alert('네트워크 문제로 불러오지 못했어요.'); });
+  }
+
+  function renameItem(id){
+    var current = state.items.filter(function(x){ return x.id === id; })[0];
+    var next = prompt('새 모둠 이름을 입력하세요.', current ? current.groupName : '');
+    if(next === null) return;
+    next = next.trim();
+    if(!next) return;
+    fetch('/api/submissions', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ action:'teacher-rename', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id, groupName: next })
+    }).then(function(r){ return r.json(); }).then(function(data){
+      if(!data || !data.ok){ alert((data && data.error) || '변경하지 못했어요.'); return; }
+      loadDashboard();
+    }).catch(function(){ alert('네트워크 문제로 변경하지 못했어요.'); });
+  }
+
+  function toggleShare(id, shared){
+    fetch('/api/submissions', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ action:'teacher-share', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id, shared: shared })
+    }).then(function(r){ return r.json(); }).then(function(data){
+      if(!data || !data.ok){ alert((data && data.error) || '변경하지 못했어요.'); return; }
+      loadDashboard();
+    }).catch(function(){ alert('네트워크 문제로 변경하지 못했어요.'); });
+  }
+
+  function deleteItem(id){
+    if(!confirm('이 면담 기록을 삭제할까요? 되돌릴 수 없어요.')) return;
+    fetch('/api/submissions', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ action:'teacher-delete', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id })
+    }).then(function(r){ return r.json(); }).then(function(data){
+      if(!data || !data.ok){ alert((data && data.error) || '삭제하지 못했어요.'); return; }
+      loadDashboard();
+    }).catch(function(){ alert('네트워크 문제로 삭제하지 못했어요.'); });
+  }
+
+  function handleLoginSubmit(e){
+    e.preventDefault();
+    var school = document.getElementById('f-school').value.trim();
+    var grade = document.getElementById('f-grade').value.trim();
+    var classNum = document.getElementById('f-class').value.trim();
+    var teacherName = document.getElementById('f-name').value.trim();
+    var pin = document.getElementById('f-pin').value.trim();
+    if(!school || !grade || !classNum || !teacherName || !pin){
+      showLoginError('모든 칸을 입력해주세요.');
+      return;
+    }
+    showLoginError('');
+    fetch('/api/room', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ action:'teacher-login', school:school, grade:grade, classNum:classNum, teacherName:teacherName, pin:pin })
+    }).then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
+      .then(function(res){
+        if(!res.ok || !(res.data && res.data.ok)){
+          showLoginError((res.data && res.data.error) || '입장에 실패했어요.');
+          return;
+        }
+        var auth = { school:school, grade:grade, classNum:classNum, pin:pin };
+        state.auth = auth;
+        saveAuth(auth);
+        showView('dashboard');
+        loadDashboard();
+      }).catch(function(){ showLoginError('네트워크 문제로 입장하지 못했어요.'); });
+  }
+
+  function wireEvents(){
+    document.getElementById('login-form').addEventListener('submit', handleLoginSubmit);
+
+    document.body.addEventListener('click', function(e){
+      if(e.target.id === 'btn-refresh'){ loadDashboard(); return; }
+      if(e.target.id === 'btn-logout'){
+        clearAuth();
+        state.auth = null;
+        showView('login');
+        return;
+      }
+      if(e.target.id === 'btn-detail-back'){ showView('dashboard'); return; }
+
+      var viewBtn = e.target.closest('.act-view');
+      if(viewBtn){ openDetail(viewBtn.getAttribute('data-id')); return; }
+      var renameBtn = e.target.closest('.act-rename');
+      if(renameBtn){ renameItem(renameBtn.getAttribute('data-id')); return; }
+      var shareBtn = e.target.closest('.act-share');
+      if(shareBtn){ toggleShare(shareBtn.getAttribute('data-id'), shareBtn.getAttribute('data-shared') === '1'); return; }
+      var delBtn = e.target.closest('.act-delete');
+      if(delBtn){ deleteItem(delBtn.getAttribute('data-id')); return; }
+    });
+  }
+
+  function init(){
+    document.getElementById('root').innerHTML = SHELL_HTML;
+    wireEvents();
+    var auth = loadAuth();
+    if(auth){
+      state.auth = auth;
+      showView('dashboard');
+      loadDashboard();
+    }else{
+      showView('login');
+    }
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>

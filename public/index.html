@@ -86,6 +86,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 .archive-item-actions{display:flex;gap:8px;margin-top:8px}
 .archive-item-actions button{font-size:.78rem;border-radius:999px;padding:6px 12px;cursor:pointer;border:1px solid var(--ai-bubble-border);background:var(--surface-2);color:var(--ink)}
 .archive-item-actions button.danger{color:#B3432B;border-color:#B3432B}
+.archive-item-locked-wrap{opacity:.75}
+.archive-item-locked{font-size:.78rem;color:#8A8F99;font-style:italic}
 .archive-detail-log{flex:1;display:flex;flex-direction:column;gap:10px;padding:8px 0;overflow-y:auto}
 .bubble-wrap{display:flex;flex-direction:column;gap:4px}
 .bubble-wrap-user{align-items:flex-end}
@@ -298,12 +300,14 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       rec.figureJob = state.currentFigureJob;
       rec.messages = state.messages;
       rec.updatedAt = new Date().toISOString();
+      if(state.room){ rec.groupName = state.room.groupName; }
     }else{
       list.unshift({
         id: state.conversationId,
         figureId: state.currentFigureId,
         figureName: state.currentFigureName,
         figureJob: state.currentFigureJob,
+        groupName: state.room ? state.room.groupName : '',
         messages: state.messages,
         savedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -530,6 +534,12 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
   }
 
   // ---------- 기기 내 보관함 화면 ----------
+  function isOwnGroupArchiveItem(item){
+    var myGroup = state.room && state.room.groupName;
+    if(!myGroup) return false;
+    return !!item.groupName && item.groupName === myGroup;
+  }
+
   function renderArchiveList(){
     var list = loadArchive();
     var wrap = document.getElementById('archive-list');
@@ -539,14 +549,18 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     }
     wrap.innerHTML = list.map(function(item){
       var count = item.messages ? item.messages.length : 0;
-      return '<div class="archive-item">'
+      var mine = isOwnGroupArchiveItem(item);
+      var actions = mine
+        ? ('<button type="button" class="btn-archive-view" data-id="' + escapeHtml(item.id) + '">보기</button>'
+          + '<button type="button" class="btn-archive-resume" data-id="' + escapeHtml(item.id) + '">이어하기</button>'
+          + '<button type="button" class="btn-archive-delete danger" data-id="' + escapeHtml(item.id) + '">삭제</button>')
+        : ('<span class="archive-item-locked">다른 모둠의 면담 기록이에요 (보기·이어하기·삭제 불가)</span>');
+      return '<div class="archive-item' + (mine ? '' : ' archive-item-locked-wrap') + '">'
         + '<div class="archive-item-top"><strong>' + escapeHtml(item.figureName || '') + '</strong>'
         + '<span class="archive-item-meta">' + escapeHtml(formatSavedAt(item.updatedAt || item.savedAt)) + '</span></div>'
         + '<span class="archive-item-meta">' + escapeHtml(item.figureJob || '') + ' · 메시지 ' + count + '개</span>'
         + '<div class="archive-item-actions">'
-        + '<button type="button" class="btn-archive-view" data-id="' + escapeHtml(item.id) + '">보기</button>'
-        + '<button type="button" class="btn-archive-resume" data-id="' + escapeHtml(item.id) + '">이어하기</button>'
-        + '<button type="button" class="btn-archive-delete danger" data-id="' + escapeHtml(item.id) + '">삭제</button>'
+        + actions
         + '</div></div>';
     }).join('');
   }
@@ -555,6 +569,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     var list = loadArchive();
     var item = list.filter(function(x){ return x.id === id; })[0];
     if(!item) return;
+    if(!isOwnGroupArchiveItem(item)) return;
     document.getElementById('archive-detail-name').textContent = item.figureName || '';
     document.getElementById('archive-detail-job').textContent = item.figureJob || '';
     state.currentSharedId = null;
@@ -567,12 +582,17 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     var list = loadArchive();
     var item = list.filter(function(x){ return x.id === id; })[0];
     if(!item) return;
+    if(!isOwnGroupArchiveItem(item)) return;
     openChat(item.figureId, item.messages, item.id);
   }
 
   function deleteArchiveItem(id){
-    var list = loadArchive().filter(function(x){ return x.id !== id; });
-    saveArchiveList(list);
+    var list = loadArchive();
+    var item = list.filter(function(x){ return x.id === id; })[0];
+    if(!item) return;
+    if(!isOwnGroupArchiveItem(item)) return;
+    var filtered = list.filter(function(x){ return x.id !== id; });
+    saveArchiveList(filtered);
     renderArchiveList();
   }
 

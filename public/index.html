@@ -51,7 +51,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 .disclaimer.small{margin:10px 0}
 .figure-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
 .figure-card{background:var(--surface);border:1px solid var(--ai-bubble-border);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
-.figure-avatar{width:40px;height:40px;border-radius:50%;background:var(--surface-2);color:var(--ink);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700}
+.figure-avatar{width:56px;height:56px;border-radius:50%;background:var(--surface-2);color:var(--ink);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:1.3rem;overflow:hidden;flex:none}
+.figure-avatar-photo img{width:100%;height:100%;object-fit:cover;border-radius:50%}
 .figure-card h3{margin:4px 0 0;font-size:1rem}
 .figure-card p{margin:0;color:var(--muted);font-size:.82rem}
 .btn-start{margin-top:8px;background:var(--accent);color:#fff;border:none;border-radius:999px;padding:8px 14px;font-size:.82rem;cursor:pointer}
@@ -358,8 +359,11 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       return;
     }
     grid.innerHTML = state.figures.map(function(f){
+      var avatar = f.photo
+        ? '<div class="figure-avatar figure-avatar-photo"><img src="' + escapeHtml(f.photo) + '" alt="' + escapeHtml(f.name) + '" /></div>'
+        : '<div class="figure-avatar">' + escapeHtml(f.name.slice(0,1)) + '</div>';
       return '<article class="figure-card">'
-        + '<div class="figure-avatar">' + escapeHtml(f.name.slice(0,1)) + '</div>'
+        + avatar
         + '<h3>' + escapeHtml(f.name) + '</h3>'
         + '<p>' + escapeHtml(f.job) + '</p>'
         + '<button class="btn-start" type="button" data-id="' + escapeHtml(f.id) + '">면담 시작</button>'

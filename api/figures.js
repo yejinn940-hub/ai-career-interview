@@ -7,7 +7,7 @@ module.exports = async function handler(req, res) {
     const raw = fs.readFileSync(file, 'utf-8');
     const figures = JSON.parse(raw);
     const list = figures.map(function (f) {
-      return { id: f.id, name: f.name, job: f.job };
+      return { id: f.id, name: f.name, job: f.job, photo: f.photo || null };
     });
     res.status(200).json({ figures: list });
   } catch (err) {

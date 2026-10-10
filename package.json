@@ -4,6 +4,9 @@
   "private": true,
   "description": "6학년 국어 면담 단원용 AI 진로 면담 연습 웹앱",
   "dependencies": {
-    "@upstash/redis": "^1.34.3"
+    "@upstash/redis": "^1.34.3",
+    "pdf-parse": "^1.1.1",
+    "mammoth": "^1.4.0",
+    "word-extractor": "^1.0.4"
   }
 }

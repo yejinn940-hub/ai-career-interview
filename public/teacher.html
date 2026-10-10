@@ -148,7 +148,20 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '        <input id="fig-photo" type="file" accept="image/*" />',
     '      </label>',
     '      <div id="fig-photo-preview" style="display:none;width:100px;height:100px;border-radius:50%;overflow:hidden;background:var(--surface-2)"><img style="width:100%;height:100%;object-fit:cover" /></div>',
-    '      <label>참고 자료(실제 인터뷰 내용)<textarea id="fig-material" placeholder="실제 인터뷰 기사나 발언 내용을 붙여넣어 주세요."></textarea></label>',
+    '      <label>참고 자료 파일 불러오기(선택, PDF·Word, 한글 .hwp는 아직 지원 안 돼요)',
+    '        <div class="school-row">',
+    '          <input id="fig-doc-file" type="file" accept=".pdf,.doc,.docx,.hwp" style="flex:2" />',
+    '          <button type="button" id="btn-doc-extract" class="btn-primary" style="margin:0;flex:1">가져오기</button>',
+    '        </div>',
+    '      </label>',
+    '      <label>또는 웹사이트 링크에서 가져오기(선택)',
+    '        <div class="school-row">',
+    '          <input id="fig-url" type="url" autocomplete="off" placeholder="https://..." style="flex:2" />',
+    '          <button type="button" id="btn-url-extract" class="btn-primary" style="margin:0;flex:1">가져오기</button>',
+    '        </div>',
+    '      </label>',
+    '      <p id="fig-extract-status" class="disclaimer small" hidden></p>',
+    '      <label>참고 자료(실제 인터뷰 내용)<textarea id="fig-material" placeholder="실제 인터뷰 기사나 발언 내용을 붙여넣어 주세요. 위에서 파일이나 링크로 가져오면 여기에 자동으로 채워져요 — 가져온 뒤 내용을 확인하고 다듬어 주세요."></textarea></label>',
     '      <p id="figure-error" class="form-error" hidden></p>',
     '      <button type="submit" class="btn-primary">추가하기</button>',
     '    </form>',
@@ -375,6 +388,72 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     reader.readAsDataURL(file);
   }
 
+  function showExtractStatus(msg, isError){
+    var el = document.getElementById('fig-extract-status');
+    if(!msg){ el.hidden = true; return; }
+    el.textContent = msg;
+    el.style.color = isError ? '#B3432B' : '';
+    el.hidden = false;
+  }
+
+  function appendMaterial(text){
+    var ta = document.getElementById('fig-material');
+    var current = ta.value.trim();
+    ta.value = current ? (current + '\n\n' + text) : text;
+  }
+
+  function fileToBase64(file){
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onload = function(){
+        var result = reader.result || '';
+        var comma = result.indexOf(',');
+        resolve(comma >= 0 ? result.slice(comma + 1) : result);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function handleDocExtract(){
+    var fileInput = document.getElementById('fig-doc-file');
+    var file = fileInput.files && fileInput.files[0];
+    if(!file){ showExtractStatus('먼저 파일을 선택해주세요.', true); return; }
+    showExtractStatus('파일에서 글자를 가져오는 중...', false);
+    fileToBase64(file).then(function(base64){
+      return fetch('/api/extract-text', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({ action:'file', filename: file.name, mime: file.type, dataBase64: base64 })
+      });
+    }).then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
+      .then(function(res){
+        if(!res.ok || !(res.data && res.data.ok)){
+          showExtractStatus((res.data && res.data.error) || '파일을 가져오지 못했어요.', true);
+          return;
+        }
+        if(res.data.text){ appendMaterial(res.data.text); showExtractStatus('파일 내용을 가져왔어요. 아래 내용을 확인해주세요.', false); }
+        else { showExtractStatus(res.data.warning || '내용을 찾지 못했어요.', true); }
+      }).catch(function(){ showExtractStatus('네트워크 문제로 가져오지 못했어요.', true); });
+  }
+
+  function handleUrlExtract(){
+    var url = document.getElementById('fig-url').value.trim();
+    if(!url){ showExtractStatus('먼저 웹사이트 주소를 입력해주세요.', true); return; }
+    showExtractStatus('웹페이지에서 글자를 가져오는 중...', false);
+    fetch('/api/extract-text', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ action:'url', url: url })
+    }).then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
+      .then(function(res){
+        if(!res.ok || !(res.data && res.data.ok)){
+          showExtractStatus((res.data && res.data.error) || '페이지를 가져오지 못했어요.', true);
+          return;
+        }
+        if(res.data.text){ appendMaterial(res.data.text); showExtractStatus('웹페이지 내용을 가져왔어요. 아래 내용을 확인해주세요.', false); }
+        else { showExtractStatus(res.data.warning || '내용을 찾지 못했어요.', true); }
+      }).catch(function(){ showExtractStatus('네트워크 문제로 가져오지 못했어요.', true); });
+  }
+
   function handleAddFigure(e){
     e.preventDefault();
     var name = document.getElementById('fig-name').value.trim();
@@ -397,6 +476,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
         document.getElementById('figure-form').reset();
         state.pendingPhoto = null;
         document.getElementById('fig-photo-preview').style.display = 'none';
+        showExtractStatus('');
         loadFigureManager();
       }).catch(function(){ showFigureError('네트워크 문제로 추가하지 못했어요.'); });
   }
@@ -464,6 +544,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     document.getElementById('login-form').addEventListener('submit', handleLoginSubmit);
     document.getElementById('figure-form').addEventListener('submit', handleAddFigure);
     document.getElementById('fig-photo').addEventListener('change', handlePhotoSelect);
+    document.getElementById('btn-doc-extract').addEventListener('click', handleDocExtract);
+    document.getElementById('btn-url-extract').addEventListener('click', handleUrlExtract);
 
     document.body.addEventListener('click', function(e){
       if(e.target.id === 'btn-refresh'){ loadDashboard(); return; }

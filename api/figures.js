@@ -1,11 +1,8 @@
-const fs = require('fs');
-const path = require('path');
+const { getFigures } = require('./_figures');
 
 module.exports = async function handler(req, res) {
   try {
-    const file = path.join(__dirname, '..', 'data', 'figures.json');
-    const raw = fs.readFileSync(file, 'utf-8');
-    const figures = JSON.parse(raw);
+    const figures = await getFigures();
     const list = figures.map(function (f) {
       return { id: f.id, name: f.name, job: f.job, photo: f.photo || null };
     });

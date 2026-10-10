@@ -50,7 +50,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 .disclaimer{background:var(--surface-2);color:var(--muted);font-size:.78rem;padding:10px 14px;border-radius:12px;margin:8px 0 16px}
 .room-form{display:flex;flex-direction:column;gap:12px;max-width:380px}
 .room-form label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:6px}
-.room-form input,.room-form select{font:inherit;font-family:var(--font-body);background:var(--surface);color:var(--ink);border:1px solid var(--ai-bubble-border);border-radius:10px;padding:10px 12px}
+.room-form input,.room-form select,.room-form textarea{font:inherit;font-family:var(--font-body);background:var(--surface);color:var(--ink);border:1px solid var(--ai-bubble-border);border-radius:10px;padding:10px 12px}
+.room-form textarea{resize:vertical;min-height:120px}
 .room-form .row{display:flex;gap:8px}
 .room-form .row label{flex:1}
 .room-form .school-row{display:flex;gap:8px}
@@ -127,6 +128,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '    <div id="room-badge" class="room-badge"></div>',
     '    <div class="toolbar">',
     '      <button type="button" id="btn-refresh" class="btn-primary">↻ 새로고침</button>',
+    '      <button type="button" id="btn-figures" class="btn-primary" style="background:#2FA84F">➕ 인물 추가</button>',
     '    </div>',
     '    <div id="sub-list" class="sub-list"></div>',
     '  </main>',
@@ -134,6 +136,19 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '    <button class="btn-back" type="button" id="btn-detail-back">← 목록으로</button>',
     '    <h2 id="detail-title" style="font-family:var(--font-display);font-size:1.05rem;margin:4px 0 10px"></h2>',
     '    <div id="detail-log" class="chat-log"></div>',
+    '  </main>',
+    '  <main id="view-figures" class="view" hidden>',
+    '    <button class="btn-back" type="button" id="btn-figures-back">← 목록으로</button>',
+    '    <h2 style="font-family:var(--font-display);font-size:1.05rem;margin:4px 0 10px">면담 인물 관리</h2>',
+    '    <p class="disclaimer">실제 인터뷰 기사나 영상 내용을 참고 자료로 붙여넣어 주세요. 이 자료를 바탕으로 AI가 답해요.</p>',
+    '    <form id="figure-form" class="room-form">',
+    '      <label>인물 이름<input id="fig-name" autocomplete="off" placeholder="예: 유재석" /></label>',
+    '      <label>직업/분야<input id="fig-job" autocomplete="off" placeholder="예: 방송인" /></label>',
+    '      <label>참고 자료(실제 인터뷰 내용)<textarea id="fig-material" placeholder="실제 인터뷰 기사나 발언 내용을 붙여넣어 주세요."></textarea></label>',
+    '      <p id="figure-error" class="form-error" hidden></p>',
+    '      <button type="submit" class="btn-primary">추가하기</button>',
+    '    </form>',
+    '    <div id="figure-list" class="sub-list" style="margin-top:20px"></div>',
     '  </main>',
     '</div>'
   ].join('\n');
@@ -160,7 +175,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
   function clearAuth(){ try{ localStorage.removeItem(AUTH_KEY); }catch(e){} }
 
   function showView(name){
-    ['login','dashboard','detail'].forEach(function(v){
+    ['login','dashboard','detail','figures'].forEach(function(v){
       document.getElementById('view-' + v).hidden = (v !== name);
     });
   }
@@ -288,6 +303,79 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     }).catch(function(){ alert('네트워크 문제로 삭제하지 못했어요.'); });
   }
 
+  function showFigureError(msg){
+    var el = document.getElementById('figure-error');
+    el.textContent = msg;
+    el.hidden = !msg;
+  }
+
+  function loadFigureManager(){
+    var wrap = document.getElementById('figure-list');
+    wrap.innerHTML = '<p class="empty">불러오는 중...</p>';
+    fetch('/api/figures-admin', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ action:'teacher-list', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin })
+    }).then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
+      .then(function(res){
+        if(!res.ok || !(res.data && res.data.ok)){
+          wrap.innerHTML = '<p class="empty">' + escapeHtml((res.data && res.data.error) || '불러오지 못했어요.') + '</p>';
+          return;
+        }
+        renderFigureList(res.data.items || []);
+      }).catch(function(){ wrap.innerHTML = '<p class="empty">네트워크 문제로 불러오지 못했어요.</p>'; });
+  }
+
+  function renderFigureList(items){
+    var wrap = document.getElementById('figure-list');
+    if(!items.length){
+      wrap.innerHTML = '<p class="empty">등록된 면담 인물이 없어요.</p>';
+      return;
+    }
+    wrap.innerHTML = items.map(function(f){
+      return '<div class="sub-item">'
+        + '<div class="sub-item-top"><strong>' + escapeHtml(f.name) + '</strong></div>'
+        + '<span class="sub-item-meta">' + escapeHtml(f.job || '') + '</span>'
+        + '<div class="sub-item-actions">'
+        + '<button type="button" class="act-figure-delete danger" data-id="' + escapeHtml(f.id) + '">삭제</button>'
+        + '</div></div>';
+    }).join('');
+  }
+
+  function handleAddFigure(e){
+    e.preventDefault();
+    var name = document.getElementById('fig-name').value.trim();
+    var job = document.getElementById('fig-job').value.trim();
+    var material = document.getElementById('fig-material').value.trim();
+    if(!name || !job || !material){
+      showFigureError('이름/직업/참고 자료를 모두 입력해주세요.');
+      return;
+    }
+    showFigureError('');
+    fetch('/api/figures-admin', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ action:'teacher-add', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, name:name, job:job, material:material })
+    }).then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
+      .then(function(res){
+        if(!res.ok || !(res.data && res.data.ok)){
+          showFigureError((res.data && res.data.error) || '추가하지 못했어요.');
+          return;
+        }
+        document.getElementById('figure-form').reset();
+        loadFigureManager();
+      }).catch(function(){ showFigureError('네트워크 문제로 추가하지 못했어요.'); });
+  }
+
+  function deleteFigure(id){
+    if(!confirm('이 면담 인물을 삭제할까요?')) return;
+    fetch('/api/figures-admin', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ action:'teacher-delete', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id })
+    }).then(function(r){ return r.json(); }).then(function(data){
+      if(!data || !data.ok){ alert((data && data.error) || '삭제하지 못했어요.'); return; }
+      loadFigureManager();
+    }).catch(function(){ alert('네트워크 문제로 삭제하지 못했어요.'); });
+  }
+
   function fillSelect(id, count, labelFn){
     var sel = document.getElementById(id);
     if(!sel) return;
@@ -338,6 +426,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 
   function wireEvents(){
     document.getElementById('login-form').addEventListener('submit', handleLoginSubmit);
+    document.getElementById('figure-form').addEventListener('submit', handleAddFigure);
 
     document.body.addEventListener('click', function(e){
       if(e.target.id === 'btn-refresh'){ loadDashboard(); return; }
@@ -348,6 +437,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
         return;
       }
       if(e.target.id === 'btn-detail-back'){ showView('dashboard'); return; }
+      if(e.target.id === 'btn-figures'){ showFigureError(''); loadFigureManager(); showView('figures'); return; }
+      if(e.target.id === 'btn-figures-back'){ showView('dashboard'); return; }
 
       var viewBtn = e.target.closest('.act-view');
       if(viewBtn){ openDetail(viewBtn.getAttribute('data-id')); return; }
@@ -357,6 +448,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       if(shareBtn){ toggleShare(shareBtn.getAttribute('data-id'), shareBtn.getAttribute('data-shared') === '1'); return; }
       var delBtn = e.target.closest('.act-delete');
       if(delBtn){ deleteItem(delBtn.getAttribute('data-id')); return; }
+      var figDelBtn = e.target.closest('.act-figure-delete');
+      if(figDelBtn){ deleteFigure(figDelBtn.getAttribute('data-id')); return; }
     });
   }
 

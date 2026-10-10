@@ -1,8 +1,4 @@
-const figuresData = require('../data/figures.json');
-
-function loadFigures() {
-  return figuresData;
-}
+const { getFigures } = require('./_figures');
 
 function buildSystemPrompt(f) {
   return [
@@ -65,7 +61,7 @@ module.exports = async function handler(req, res) {
 
   let figures;
   try {
-    figures = loadFigures();
+    figures = await getFigures();
   } catch (e) {
     res.status(500).json({ error: '면담 인물 자료를 불러오지 못했어요.' });
     return;

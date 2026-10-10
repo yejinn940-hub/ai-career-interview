@@ -42,9 +42,19 @@ module.exports = async function handler(req, res) {
         res.status(400).json({ error: '이름/직업/참고 자료를 모두 입력해주세요.' });
         return;
       }
+      let photo = typeof body.photo === 'string' ? body.photo.trim() : '';
+      if (photo && !/^data:image\//.test(photo)) {
+        photo = '';
+      }
+      if (photo && photo.length > 700000) {
+        res.status(400).json({ error: '사진 용량이 너무 커요. 더 작은 사진으로 다시 올려주세요.' });
+        return;
+      }
       const figures = await getFigures();
       const id = genFigureId(name);
-      figures.push({ id: id, name: name, job: job, material: material });
+      const record = { id: id, name: name, job: job, material: material };
+      if (photo) record.photo = photo;
+      figures.push(record);
       await saveFigures(figures);
       res.status(200).json({ ok: true, id: id });
       return;

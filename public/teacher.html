@@ -50,9 +50,12 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 .disclaimer{background:var(--surface-2);color:var(--muted);font-size:.78rem;padding:10px 14px;border-radius:12px;margin:8px 0 16px}
 .room-form{display:flex;flex-direction:column;gap:12px;max-width:380px}
 .room-form label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:6px}
-.room-form input{font:inherit;font-family:var(--font-body);background:var(--surface);color:var(--ink);border:1px solid var(--ai-bubble-border);border-radius:10px;padding:10px 12px}
+.room-form input,.room-form select{font:inherit;font-family:var(--font-body);background:var(--surface);color:var(--ink);border:1px solid var(--ai-bubble-border);border-radius:10px;padding:10px 12px}
 .room-form .row{display:flex;gap:8px}
 .room-form .row label{flex:1}
+.room-form .school-row{display:flex;gap:8px}
+.room-form .school-row input{flex:2}
+.room-form .school-row select{flex:1}
 .btn-primary{background:var(--accent);color:#fff;border:none;border-radius:999px;padding:10px 16px;font-size:.9rem;cursor:pointer;margin-top:4px}
 .form-error{color:#B3432B;font-size:.82rem}
 .btn-back{background:none;border:none;color:var(--muted);font-size:.9rem;cursor:pointer;padding:8px 0;text-align:left}
@@ -99,10 +102,19 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '  <main id="view-login" class="view">',
     '    <p class="disclaimer">학교/학년/반 정보와 PIN으로 반을 만들거나 들어가요. 처음 만들 때 입력한 PIN을 꼭 기억해주세요.</p>',
     '    <form id="login-form" class="room-form">',
-    '      <label>학교 이름<input id="f-school" autocomplete="off" placeholder="예: 낙민초등학교" /></label>',
+    '      <label>학교 이름',
+    '        <div class="school-row">',
+    '          <input id="f-school" autocomplete="off" placeholder="예: 낙민" />',
+    '          <select id="f-school-type">',
+    '            <option value="초등학교">초등학교</option>',
+    '            <option value="중학교">중학교</option>',
+    '            <option value="고등학교">고등학교</option>',
+    '          </select>',
+    '        </div>',
+    '      </label>',
     '      <div class="row">',
-    '        <label>학년<input id="f-grade" autocomplete="off" placeholder="예: 6" /></label>',
-    '        <label>반<input id="f-class" autocomplete="off" placeholder="예: 2" /></label>',
+    '        <label>학년<select id="f-grade"></select></label>',
+    '        <label>반<select id="f-class"></select></label>',
     '      </div>',
     '      <label>선생님 성함<input id="f-name" autocomplete="off" placeholder="예: 김예진" /></label>',
     '      <label>PIN (4자리 이상)<input id="f-pin" type="password" inputmode="numeric" autocomplete="off" placeholder="숫자 4자리 이상" /></label>',
@@ -276,14 +288,33 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     }).catch(function(){ alert('네트워크 문제로 삭제하지 못했어요.'); });
   }
 
+  function fillSelect(id, count, labelFn){
+    var sel = document.getElementById(id);
+    if(!sel) return;
+    sel.innerHTML = '';
+    for(var i = 1; i <= count; i++){
+      var opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = labelFn ? labelFn(i) : String(i);
+      sel.appendChild(opt);
+    }
+  }
+
+  function populateLoginSelects(){
+    fillSelect('f-grade', 6);
+    fillSelect('f-class', 10);
+  }
+
   function handleLoginSubmit(e){
     e.preventDefault();
-    var school = document.getElementById('f-school').value.trim();
+    var schoolBase = document.getElementById('f-school').value.trim();
+    var schoolType = document.getElementById('f-school-type').value;
+    var school = schoolBase ? (schoolBase + schoolType) : '';
     var grade = document.getElementById('f-grade').value.trim();
     var classNum = document.getElementById('f-class').value.trim();
     var teacherName = document.getElementById('f-name').value.trim();
     var pin = document.getElementById('f-pin').value.trim();
-    if(!school || !grade || !classNum || !teacherName || !pin){
+    if(!schoolBase || !grade || !classNum || !teacherName || !pin){
       showLoginError('모든 칸을 입력해주세요.');
       return;
     }
@@ -332,6 +363,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
   function init(){
     document.getElementById('root').innerHTML = SHELL_HTML;
     wireEvents();
+    populateLoginSelects();
     var auth = loadAuth();
     if(auth){
       state.auth = auth;

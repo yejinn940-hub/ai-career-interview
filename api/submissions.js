@@ -126,6 +126,16 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    // ---- 공개: 학생이 기기 내 보관함을 정리할 때 쓰는, 서버에 남아있는 id 목록 ----
+    // (선생님이 삭제한 기록을 학생 화면에서도 영구 삭제하기 위해 사용)
+    if (action === 'student-ids') {
+      const { room, key } = await getRoom(body.school, body.grade, body.classNum);
+      if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
+      const list = await getList(key);
+      res.status(200).json({ ok: true, ids: list.map(function (x) { return x.id; }) });
+      return;
+    }
+
     // ---- 공개: 학급에 공유된 면담 목록 (코드 불필요, 반 정보만 필요) ----
     if (action === 'shared-list') {
       const { room, key } = await getRoom(body.school, body.grade, body.classNum);

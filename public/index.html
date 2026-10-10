@@ -575,6 +575,29 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     return item.groupName === myGroup;
   }
 
+  function pruneDeletedArchiveItems(done){
+    // 선생님이 "면담 기록 관리"에서 삭제한 기록은, 학생 기기의 "저장된 면담 기록"에서도
+    // 영구 삭제되도록 서버에 남아있는 id 목록과 대조해서 지운다.
+    // (한 번이라도 서버와 동기화된 적 있는 기록, 즉 모둠 이름이 붙은 기록만 대상으로 함 —
+    //  아직 동기화 전인 기록까지 네트워크 문제로 잘못 지우지 않기 위해서)
+    if(!state.room){ if(done) done(); return; }
+    fetch('/api/submissions', {
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body: JSON.stringify({ action:'student-ids', school: state.room.school, grade: state.room.grade, classNum: state.room.classNum })
+    }).then(function(r){ return r.json(); }).then(function(data){
+      if(data && data.ok && Array.isArray(data.ids)){
+        var serverIds = data.ids;
+        var list = loadArchive();
+        var kept = list.filter(function(item){
+          return !item.groupName || serverIds.indexOf(item.id) !== -1;
+        });
+        if(kept.length !== list.length){ saveArchiveList(kept); }
+      }
+    }).catch(function(){ /* 네트워크 문제면 정리는 건너뛰고 기존 목록 그대로 보여줌 */ })
+      .then(function(){ if(done) done(); });
+  }
+
   function renderArchiveList(){
     var list = loadArchive();
     var wrap = document.getElementById('archive-list');
@@ -797,11 +820,18 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
         return;
       }
 
-      if(e.target.id === 'btn-archive-open'){ renderArchiveList(); showView('archive'); return; }
+      if(e.target.id === 'btn-archive-open'){
+        renderArchiveList(); showView('archive');
+        pruneDeletedArchiveItems(renderArchiveList);
+        return;
+      }
       if(e.target.id === 'btn-archive-back'){ showView('home'); return; }
       if(e.target.id === 'btn-archive-detail-back'){
         if(DETAIL_RETURN_VIEW === 'shared'){ renderSharedList(); showView('shared'); }
-        else { renderArchiveList(); showView('archive'); }
+        else {
+          renderArchiveList(); showView('archive');
+          pruneDeletedArchiveItems(renderArchiveList);
+        }
         return;
       }
       var viewBtn = e.target.closest('.btn-archive-view');

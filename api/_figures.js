@@ -12,20 +12,32 @@ function loadLocalFigures() {
   return JSON.parse(raw);
 }
 
-// 일회성 교체: 저장소에 남아있는 '김연경'을 '안세영'(data/figures.json 기준)으로 바꾼다.
-// 이미 바뀐 뒤에는 아무 일도 하지 않는다.
-async function migrateKimToAn(list) {
-  const hasKim = list.some(function (f) { return f.id === 'kim-yeonkoung'; });
-  if (!hasKim) return list;
-  const seed = loadLocalFigures().filter(function (f) { return f.id === 'an-seyoung'; })[0];
-  const alreadyHasAn = list.some(function (f) { return f.id === 'an-seyoung' || f.name === '안세영'; });
-  const next = [];
-  list.forEach(function (f) {
-    if (f.id === 'kim-yeonkoung') {
-      if (seed && !alreadyHasAn) next.push(seed);
-    } else {
-      next.push(f);
-    }
+// 일회성 교체: 저장소에 남아있는 옛 인물을 data/figures.json의 새 인물로 바꾼다.
+// 이미 바뀐 뒤에는 아무 일도 하지 않는다. (선생님 페이지에서 직접 추가·삭제한 인물은 건드리지 않음)
+const REPLACEMENTS = [
+  { from: 'kim-yeonkoung', to: 'an-seyoung', toName: '안세영' },
+  { from: 'faker', to: 'yang-inmo', toName: '양인모' }
+];
+
+async function migrateReplacements(list) {
+  const todo = REPLACEMENTS.filter(function (r) {
+    return list.some(function (f) { return f.id === r.from; });
+  });
+  if (!todo.length) return list;
+  const seeds = loadLocalFigures();
+  let next = list.slice();
+  todo.forEach(function (r) {
+    const seed = seeds.filter(function (f) { return f.id === r.to; })[0];
+    const already = next.some(function (f) { return f.id === r.to || f.name === r.toName; });
+    const out = [];
+    next.forEach(function (f) {
+      if (f.id === r.from) {
+        if (seed && !already) out.push(seed);
+      } else {
+        out.push(f);
+      }
+    });
+    next = out;
   });
   await store.kv.set(FIGURES_KEY, next);
   return next;
@@ -35,7 +47,7 @@ async function getFigures() {
   if (store.isConfigured()) {
     const existing = await store.kv.get(FIGURES_KEY);
     if (Array.isArray(existing) && existing.length) {
-      return await migrateKimToAn(existing);
+      return await migrateReplacements(existing);
     }
     const seed = loadLocalFigures();
     await store.kv.set(FIGURES_KEY, seed);

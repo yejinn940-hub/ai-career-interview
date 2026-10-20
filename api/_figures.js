@@ -12,11 +12,30 @@ function loadLocalFigures() {
   return JSON.parse(raw);
 }
 
+// 일회성 교체: 저장소에 남아있는 '김연경'을 '안세영'(data/figures.json 기준)으로 바꾼다.
+// 이미 바뀐 뒤에는 아무 일도 하지 않는다.
+async function migrateKimToAn(list) {
+  const hasKim = list.some(function (f) { return f.id === 'kim-yeonkoung'; });
+  if (!hasKim) return list;
+  const seed = loadLocalFigures().filter(function (f) { return f.id === 'an-seyoung'; })[0];
+  const alreadyHasAn = list.some(function (f) { return f.id === 'an-seyoung' || f.name === '안세영'; });
+  const next = [];
+  list.forEach(function (f) {
+    if (f.id === 'kim-yeonkoung') {
+      if (seed && !alreadyHasAn) next.push(seed);
+    } else {
+      next.push(f);
+    }
+  });
+  await store.kv.set(FIGURES_KEY, next);
+  return next;
+}
+
 async function getFigures() {
   if (store.isConfigured()) {
     const existing = await store.kv.get(FIGURES_KEY);
     if (Array.isArray(existing) && existing.length) {
-      return existing;
+      return await migrateKimToAn(existing);
     }
     const seed = loadLocalFigures();
     await store.kv.set(FIGURES_KEY, seed);

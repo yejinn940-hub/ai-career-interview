@@ -507,13 +507,38 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     }).catch(function(){});
   }
 
-  // 공유된 면담을 보는 동안 15초마다 새 피드백을 자동으로 확인 (화면이 가려져 있으면 쉼)
+  // 공유된 면담을 보는 동안 20초마다 새 메시지/피드백을 자동으로 확인 (화면이 가려져 있으면 쉼)
   function pollSharedComments(){
-    if(document.hidden) return;
+    if(document.hidden || !state.room) return;
     var v = document.getElementById('view-archive-detail');
     if(!v || v.hidden) return;
     if(DETAIL_RETURN_VIEW !== 'shared' || !state.currentSharedId) return;
-    loadSharedComments(state.currentSharedId, true);
+    var id = state.currentSharedId;
+    fetch('/api/submissions', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ action:'live', school: state.room.school, grade: state.room.grade, classNum: state.room.classNum, id: id })
+    }).then(function(r){ return r.json(); }).then(function(data){
+      if(!data || !data.ok || data.gone || state.currentSharedId !== id) return;
+      var map = {};
+      (data.comments || []).forEach(function(c){
+        var k = String(c.messageIndex);
+        if(!map[k]) map[k] = [];
+        map[k].push(c);
+      });
+      var msgs = data.messages || [];
+      var same = JSON.stringify(map) === JSON.stringify(state.sharedComments || {})
+        && JSON.stringify(msgs) === JSON.stringify(state.currentSharedMessages || []);
+      if(same) return;
+      if(document.querySelector('.feedback-form:not([hidden])')) return; // 누가 쓰는 중이면 다음 확인 때
+      var logEl = document.getElementById('archive-detail-log');
+      var grew = msgs.length > (state.currentSharedMessages || []).length;
+      var atBottom = logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 80;
+      var keepTop = logEl.scrollTop, keepY = window.scrollY;
+      state.sharedComments = map;
+      state.currentSharedMessages = msgs;
+      renderSharedBubbles(logEl, msgs, id);
+      if(!(grew && atBottom)){ logEl.scrollTop = keepTop; window.scrollTo(0, keepY); }
+    }).catch(function(){});
   }
 
   function submitFeedback(index){
@@ -919,7 +944,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
   function init(){
     document.getElementById('root').innerHTML = SHELL_HTML;
     wireEvents();
-    setInterval(pollSharedComments, 15000);
+    setInterval(pollSharedComments, 20000);
     populateJoinSelects();
     fetch('/api/figures').then(function(r){ return r.json(); }).then(function(data){
       state.figures = (data && data.figures) || [];

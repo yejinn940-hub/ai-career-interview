@@ -76,7 +76,7 @@ module.exports = async function handler(req, res) {
           figureJob: body.figureJob,
           messages: messages,
           status: 'in_progress',
-          shared: false,
+          shared: true,
           startedAt: now,
           updatedAt: now,
           submittedAt: null
@@ -123,6 +123,19 @@ module.exports = async function handler(req, res) {
       rec.submittedAt = null;
       await saveList(key, list);
       res.status(200).json({ ok: true });
+      return;
+    }
+
+    // ---- 공개: 공유된 면담을 보는 동안 주기적으로 부르는 가벼운 조회 (메시지 + 피드백, Redis 1회 요청) ----
+    if (action === 'live') {
+      const key = store.roomKey(body.school, body.grade, body.classNum);
+      const id = String(body.id || '');
+      if (!id) { res.status(400).json({ error: '면담 정보를 찾을 수 없어요.' }); return; }
+      const got = await store.kv.mget(['submissions:' + key, 'comments:' + key + ':' + id]);
+      const list = Array.isArray(got[0]) ? got[0] : [];
+      const rec = list.filter(function (x) { return x.id === id && x.shared; })[0];
+      if (!rec) { res.status(200).json({ ok: true, gone: true }); return; }
+      res.status(200).json({ ok: true, messages: rec.messages || [], updatedAt: rec.updatedAt, comments: Array.isArray(got[1]) ? got[1] : [] });
       return;
     }
 

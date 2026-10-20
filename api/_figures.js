@@ -43,11 +43,32 @@ async function migrateReplacements(list) {
   return next;
 }
 
+// 일회성 자료 갱신: data/figures.json의 자료(material)가 새로 정리된 인물만, 저장소의 자료를 새 것으로 바꾼다.
+// figure.materialVersion이 이미 최신이면 아무 일도 하지 않으므로 Redis 요청이 늘지 않는다.
+// 사진 등 다른 항목과, 선생님이 직접 추가한 인물은 건드리지 않는다.
+const MATERIAL_VERSION = 2;
+
+async function migrateMaterials(list) {
+  const stale = list.filter(function (f) { return (f.materialVersion || 0) < MATERIAL_VERSION; });
+  if (!stale.length) return list;
+  const seeds = loadLocalFigures();
+  let changed = false;
+  const next = list.map(function (f) {
+    if ((f.materialVersion || 0) >= MATERIAL_VERSION) return f;
+    const seed = seeds.filter(function (s) { return s.id === f.id; })[0];
+    if (!seed) return f; // 선생님이 직접 추가한 인물
+    changed = true;
+    return Object.assign({}, f, { material: seed.material, materialVersion: MATERIAL_VERSION });
+  });
+  if (changed) await store.kv.set(FIGURES_KEY, next);
+  return next;
+}
+
 async function getFigures() {
   if (store.isConfigured()) {
     const existing = await store.kv.get(FIGURES_KEY);
     if (Array.isArray(existing) && existing.length) {
-      return await migrateReplacements(existing);
+      return await migrateMaterials(await migrateReplacements(existing));
     }
     const seed = loadLocalFigures();
     await store.kv.set(FIGURES_KEY, seed);

@@ -144,18 +144,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '    </div>',
     '  </header>',
     '  <main id="view-join" class="view">',
-    '    <p class="disclaimer">선생님이 만든 반에 입장할게요. 학교/학년/반 정보는 선생님께 확인해주세요.</p>',
+    '    <p class="disclaimer">선생님이 만든 반에 입장할게요. 학년/반 정보는 선생님께 확인해주세요.</p>',
     '    <form id="join-form" class="room-form">',
-    '      <label>학교 이름',
-    '        <div class="school-row">',
-    '          <input id="join-school" autocomplete="off" placeholder="예: 한국" />',
-    '          <select id="join-school-type">',
-    '            <option value="초등학교">초등학교</option>',
-    '            <option value="중학교">중학교</option>',
-    '            <option value="고등학교">고등학교</option>',
-    '          </select>',
-    '        </div>',
-    '      </label>',
     '      <div class="row">',
     '        <label>학년<select id="join-grade"></select></label>',
     '        <label>반<select id="join-class"></select></label>',
@@ -248,7 +238,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       var raw = localStorage.getItem(ROOM_KEY);
       if(!raw) return null;
       var r = JSON.parse(raw);
-      if(!r || !r.school || !r.grade || !r.classNum || !r.groupName) return null;
+      if(!r || !r.grade || !r.classNum || !r.groupName) return null;
+      delete r.school; // 예전에 저장된 학교 이름은 쓰지 않는다
       return r;
     }catch(e){ return null; }
   }
@@ -264,7 +255,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
   function renderRoomBadge(){
     var el = document.getElementById('room-badge');
     if(!state.room){ el.innerHTML = ''; return; }
-    el.innerHTML = '<span>' + escapeHtml(state.room.school) + ' ' + escapeHtml(state.room.grade) + '학년 ' + escapeHtml(state.room.classNum) + '반 · '
+    el.innerHTML = '<span>' + escapeHtml(state.room.grade) + '학년 ' + escapeHtml(state.room.classNum) + '반 · '
       + escapeHtml(state.room.groupName) + '</span><button type="button" id="btn-room-change">반 바꾸기</button>';
   }
 
@@ -363,7 +354,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       headers: {'content-type':'application/json'},
       body: JSON.stringify({
         action: 'sync',
-        school: state.room.school, grade: state.room.grade, classNum: state.room.classNum,
+        grade: state.room.grade, classNum: state.room.classNum,
         groupName: state.room.groupName,
         id: state.conversationId,
         figureId: state.currentFigureId, figureName: state.currentFigureName, figureJob: state.currentFigureJob,
@@ -380,7 +371,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     fetch('/api/submissions', {
       method:'POST',
       headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'submit', school: state.room.school, grade: state.room.grade, classNum: state.room.classNum, id: state.conversationId })
+      body: JSON.stringify({ action:'submit', grade: state.room.grade, classNum: state.room.classNum, id: state.conversationId })
     }).then(function(r){ return r.json(); }).then(function(data){
       btn.disabled = false;
       btn.textContent = (data && data.ok) ? '✅ 제출 완료' : '📨 면담자료제출';
@@ -399,7 +390,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     fetch('/api/submissions', {
       method:'POST',
       headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'unsubmit', school: state.room.school, grade: state.room.grade, classNum: state.room.classNum, groupName: state.room.groupName, id: id })
+      body: JSON.stringify({ action:'unsubmit', grade: state.room.grade, classNum: state.room.classNum, groupName: state.room.groupName, id: id })
     }).then(function(r){ return r.json(); }).then(function(data){
       if(data && data.ok){
         markArchiveStatus(id, 'in_progress');
@@ -488,7 +479,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     if(!state.room) return;
     fetch('/api/comments', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'list', school: state.room.school, grade: state.room.grade, classNum: state.room.classNum, submissionId: submissionId })
+      body: JSON.stringify({ action:'list', grade: state.room.grade, classNum: state.room.classNum, submissionId: submissionId })
     }).then(function(r){ return r.json(); }).then(function(data){
       var map = {};
       ((data && data.items) || []).forEach(function(c){
@@ -520,7 +511,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     var id = state.currentSharedId;
     fetch('/api/submissions', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'live', school: state.room.school, grade: state.room.grade, classNum: state.room.classNum, id: id })
+      body: JSON.stringify({ action:'live', grade: state.room.grade, classNum: state.room.classNum, id: id })
     }).then(function(r){ return r.json(); }).then(function(data){
       if(!data || !data.ok || data.gone || state.currentSharedId !== id) return;
       var map = {};
@@ -554,7 +545,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     if(!text) return;
     fetch('/api/comments', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'add', school: state.room.school, grade: state.room.grade, classNum: state.room.classNum, submissionId: state.currentSharedId, messageIndex: Number(index), groupName: state.room.groupName, text: text })
+      body: JSON.stringify({ action:'add', grade: state.room.grade, classNum: state.room.classNum, submissionId: state.currentSharedId, messageIndex: Number(index), groupName: state.room.groupName, text: text })
     }).then(function(r){ return r.json(); }).then(function(data){
       if(!data || !data.ok){ alert((data && data.error) || '등록하지 못했어요.'); return; }
       loadSharedComments(state.currentSharedId);
@@ -645,7 +636,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     fetch('/api/submissions', {
       method:'POST',
       headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'student-ids', school: state.room.school, grade: state.room.grade, classNum: state.room.classNum })
+      body: JSON.stringify({ action:'student-ids', grade: state.room.grade, classNum: state.room.classNum })
     }).then(function(r){ return r.json(); }).then(function(data){
       if(data && data.ok && Array.isArray(data.ids)){
         var serverIds = data.ids;
@@ -663,7 +654,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
           return fetch('/api/submissions', {
             method:'POST',
             headers:{'content-type':'application/json'},
-            body: JSON.stringify({ action:'student-get', school: state.room.school, grade: state.room.grade, classNum: state.room.classNum, id: item.id, groupName: item.groupName })
+            body: JSON.stringify({ action:'student-get', grade: state.room.grade, classNum: state.room.classNum, id: item.id, groupName: item.groupName })
           }).then(function(r){ return r.json(); }).then(function(d){
             if(d && d.ok && Array.isArray(d.messages)){
               var cur = loadArchive();
@@ -762,7 +753,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     if(!state.room){ wrap.innerHTML = '<p class="empty">반 정보가 없어요.</p>'; return; }
     fetch('/api/submissions', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'shared-list', school: state.room.school, grade: state.room.grade, classNum: state.room.classNum })
+      body: JSON.stringify({ action:'shared-list', grade: state.room.grade, classNum: state.room.classNum })
     }).then(function(r){ return r.json(); }).then(function(data){
       var items = (data && data.items) || [];
       if(!items.length){ wrap.innerHTML = '<p class="empty">아직 선생님이 공유한 면담이 없어요.</p>'; return; }
@@ -821,28 +812,25 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 
   function handleJoinSubmit(e){
     e.preventDefault();
-    var schoolBase = document.getElementById('join-school').value.trim();
-    var schoolType = document.getElementById('join-school-type').value;
-    var school = schoolBase ? (schoolBase + schoolType) : '';
     var grade = document.getElementById('join-grade').value.trim();
     var classNum = document.getElementById('join-class').value.trim();
     var groupSel = document.getElementById('join-group');
     var groupName = groupSel.options[groupSel.selectedIndex] ? groupSel.options[groupSel.selectedIndex].textContent : '';
-    if(!schoolBase || !grade || !classNum || !groupName){
+    if(!grade || !classNum || !groupName){
       showJoinError('모든 칸을 입력해주세요.');
       return;
     }
     showJoinError('');
     fetch('/api/room', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'student-join', school:school, grade:grade, classNum:classNum, groupName:groupName })
+      body: JSON.stringify({ action:'student-join', grade:grade, classNum:classNum, groupName:groupName })
     }).then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
       .then(function(res){
         if(!res.ok || !(res.data && res.data.ok)){
           showJoinError((res.data && res.data.error) || '입장에 실패했어요.');
           return;
         }
-        var room = { school:school, grade:grade, classNum:classNum, groupName:groupName, teacherName: res.data.room.teacherName };
+        var room = { grade:grade, classNum:classNum, groupName:groupName, teacherName: res.data.room.teacherName };
         state.room = room;
         saveRoom(room);
         showWelcome();
@@ -853,7 +841,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     var room = state.room;
     var info = document.getElementById('welcome-room-info');
     if(info && room){
-      info.textContent = room.school + ' ' + room.grade + '학년 ' + room.classNum + '반 · ' + room.groupName + ' 모둠';
+      info.textContent = room.grade + '학년 ' + room.classNum + '반 · ' + room.groupName + ' 모둠';
     }
     showView('welcome');
   }

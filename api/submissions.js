@@ -23,7 +23,7 @@ function genId() {
 
 async function getRoom(school, grade, classNum) {
   const key = store.roomKey(school, grade, classNum);
-  const room = await store.kv.get('room:' + key);
+  const room = (await store.getRoomRecord(key)).room;
   return { key: key, room: room };
 }
 

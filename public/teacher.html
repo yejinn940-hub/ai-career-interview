@@ -109,18 +109,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '    </div>',
     '  </header>',
     '  <main id="view-login" class="view">',
-    '    <p class="disclaimer">학교/학년/반 정보와 PIN으로 반을 만들거나 들어가요. 처음 만들 때 입력한 PIN을 꼭 기억해주세요.</p>',
+    '    <p class="disclaimer">학년/반 정보와 PIN으로 반을 만들거나 들어가요. 처음 만들 때 입력한 PIN을 꼭 기억해주세요.</p>',
     '    <form id="login-form" class="room-form">',
-    '      <label>학교 이름',
-    '        <div class="school-row">',
-    '          <input id="f-school" autocomplete="off" placeholder="예: 한국" />',
-    '          <select id="f-school-type">',
-    '            <option value="초등학교">초등학교</option>',
-    '            <option value="중학교">중학교</option>',
-    '            <option value="고등학교">고등학교</option>',
-    '          </select>',
-    '        </div>',
-    '      </label>',
     '      <div class="row">',
     '        <label>학년<select id="f-grade"></select></label>',
     '        <label>반<select id="f-class"></select></label>',
@@ -193,7 +183,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       var raw = localStorage.getItem(AUTH_KEY);
       if(!raw) return null;
       var a = JSON.parse(raw);
-      if(!a || !a.school || !a.grade || !a.classNum || !a.pin) return null;
+      if(!a || !a.grade || !a.classNum || !a.pin) return null;
+      delete a.school; // 예전에 저장된 학교 이름은 쓰지 않는다
       return a;
     }catch(e){ return null; }
   }
@@ -229,7 +220,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 
   function renderRoomBadge(room){
     var el = document.getElementById('room-badge');
-    el.innerHTML = '<span>' + escapeHtml(room.school) + ' ' + escapeHtml(room.grade) + '학년 ' + escapeHtml(room.classNum) + '반 · '
+    el.innerHTML = '<span>' + escapeHtml(room.grade) + '학년 ' + escapeHtml(room.classNum) + '반 · '
       + escapeHtml(room.teacherName || '') + ' 선생님</span><button type="button" id="btn-logout">다른 반으로</button>';
   }
 
@@ -238,7 +229,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     wrap.innerHTML = '<p class="empty">불러오는 중...</p>';
     fetch('/api/submissions', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'teacher-list', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin })
+      body: JSON.stringify({ action:'teacher-list', grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin })
     }).then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
       .then(function(res){
         if(!res.ok || !(res.data && res.data.ok)){
@@ -246,7 +237,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
           return;
         }
         state.items = res.data.items || [];
-        renderRoomBadge({ school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, teacherName: res.data.teacherName });
+        renderRoomBadge({ grade: state.auth.grade, classNum: state.auth.classNum, teacherName: res.data.teacherName });
         renderSubList();
       }).catch(function(){ wrap.innerHTML = '<p class="empty">네트워크 문제로 불러오지 못했어요.</p>'; });
   }
@@ -319,7 +310,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
   function openDetail(id){
     fetch('/api/submissions', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'teacher-get', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id })
+      body: JSON.stringify({ action:'teacher-get', grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id })
     }).then(function(r){ return r.json(); }).then(function(data){
       if(!data || !data.ok){ alert((data && data.error) || '불러오지 못했어요.'); return; }
       state.detailItem = data.item;
@@ -335,7 +326,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     if(!confirm('이 피드백을 삭제할까요? 되돌릴 수 없어요.')) return;
     fetch('/api/comments', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'teacher-delete', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, submissionId: id, commentId: cid })
+      body: JSON.stringify({ action:'teacher-delete', grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, submissionId: id, commentId: cid })
     }).then(function(r){ return r.json(); }).then(function(data){
       if(!data || !data.ok){ alert((data && data.error) || '삭제하지 못했어요.'); return; }
       openDetail(id);
@@ -348,7 +339,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     if(!confirm('이 줄을 삭제할까요? 삭제하면 되돌릴 수 없고, 학생 기기에 저장된 기록에서도 다음에 열 때 함께 지워져요.')) return;
     fetch('/api/submissions', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'teacher-delete-messages', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id, indexes: [index] })
+      body: JSON.stringify({ action:'teacher-delete-messages', grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id, indexes: [index] })
     }).then(function(r){ return r.json(); }).then(function(data){
       if(!data || !data.ok){ alert((data && data.error) || '삭제하지 못했어요.'); return; }
       var title = document.getElementById('detail-title').textContent.split(' · ');
@@ -364,7 +355,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     if(!next) return;
     fetch('/api/submissions', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'teacher-rename', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id, groupName: next })
+      body: JSON.stringify({ action:'teacher-rename', grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id, groupName: next })
     }).then(function(r){ return r.json(); }).then(function(data){
       if(!data || !data.ok){ alert((data && data.error) || '변경하지 못했어요.'); return; }
       loadDashboard();
@@ -374,7 +365,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
   function toggleShare(id, shared){
     fetch('/api/submissions', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'teacher-share', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id, shared: shared })
+      body: JSON.stringify({ action:'teacher-share', grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id, shared: shared })
     }).then(function(r){ return r.json(); }).then(function(data){
       if(!data || !data.ok){ alert((data && data.error) || '변경하지 못했어요.'); return; }
       loadDashboard();
@@ -385,7 +376,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     if(!confirm('이 면담 기록을 삭제할까요? 되돌릴 수 없어요.')) return;
     fetch('/api/submissions', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'teacher-delete', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id })
+      body: JSON.stringify({ action:'teacher-delete', grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id })
     }).then(function(r){ return r.json(); }).then(function(data){
       if(!data || !data.ok){ alert((data && data.error) || '삭제하지 못했어요.'); return; }
       loadDashboard();
@@ -403,7 +394,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     wrap.innerHTML = '<p class="empty">불러오는 중...</p>';
     fetch('/api/figures-admin', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'teacher-list', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin })
+      body: JSON.stringify({ action:'teacher-list', grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin })
     }).then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
       .then(function(res){
         if(!res.ok || !(res.data && res.data.ok)){
@@ -538,7 +529,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     showFigureError('');
     fetch('/api/figures-admin', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'teacher-add', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, name:name, job:job, material:material, photo: state.pendingPhoto || null })
+      body: JSON.stringify({ action:'teacher-add', grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, name:name, job:job, material:material, photo: state.pendingPhoto || null })
     }).then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
       .then(function(res){
         if(!res.ok || !(res.data && res.data.ok)){
@@ -557,7 +548,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     if(!confirm('이 면담 인물을 삭제할까요?')) return;
     fetch('/api/figures-admin', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'teacher-delete', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id })
+      body: JSON.stringify({ action:'teacher-delete', grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id })
     }).then(function(r){ return r.json(); }).then(function(data){
       if(!data || !data.ok){ alert((data && data.error) || '삭제하지 못했어요.'); return; }
       loadFigureManager();
@@ -583,28 +574,26 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 
   function handleLoginSubmit(e){
     e.preventDefault();
-    var schoolBase = document.getElementById('f-school').value.trim();
-    var schoolType = document.getElementById('f-school-type').value;
-    var school = schoolBase ? (schoolBase + schoolType) : '';
     var grade = document.getElementById('f-grade').value.trim();
     var classNum = document.getElementById('f-class').value.trim();
     var teacherName = document.getElementById('f-name').value.trim();
     var pin = document.getElementById('f-pin').value.trim();
-    if(!schoolBase || !grade || !classNum || !teacherName || !pin){
+    if(!grade || !classNum || !teacherName || !pin){
       showLoginError('모든 칸을 입력해주세요.');
       return;
     }
     showLoginError('');
     fetch('/api/room', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'teacher-login', school:school, grade:grade, classNum:classNum, teacherName:teacherName, pin:pin })
+      body: JSON.stringify({ action:'teacher-login', grade:grade, classNum:classNum, teacherName:teacherName, pin:pin })
     }).then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
       .then(function(res){
         if(!res.ok || !(res.data && res.data.ok)){
           showLoginError((res.data && res.data.error) || '입장에 실패했어요.');
           return;
         }
-        var auth = { school:school, grade:grade, classNum:classNum, pin:pin };
+        var auth = { grade:grade, classNum:classNum, pin:pin };
+        if(res.data.migrated){ alert('저장된 면담 기록에서 학교 이름을 정리했어요. (반 ' + res.data.migrated.rooms + '개, 면담 ' + res.data.migrated.records + '개, 피드백 ' + res.data.migrated.comments + '개 정리)'); }
         state.auth = auth;
         saveAuth(auth);
         showView('dashboard');

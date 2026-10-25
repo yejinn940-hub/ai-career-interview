@@ -20,14 +20,13 @@ module.exports = async function handler(req, res) {
 
   try {
     if (action === 'teacher-login') {
-      const school = store.normalize(body.school);
       const grade = store.normalize(body.grade);
       const classNum = store.normalize(body.classNum);
       const teacherName = store.normalize(body.teacherName);
       const pin = String(body.pin || '').trim();
 
-      if (!school || !grade || !classNum || !teacherName || !pin) {
-        res.status(400).json({ error: '학교/학년/반/선생님 성함/PIN을 모두 입력해주세요.' });
+      if (!grade || !classNum || !teacherName || !pin) {
+        res.status(400).json({ error: '학년/반/선생님 성함/PIN을 모두 입력해주세요.' });
         return;
       }
       if (pin.length < 4) {
@@ -35,13 +34,15 @@ module.exports = async function handler(req, res) {
         return;
       }
 
-      const key = store.roomKey(school, grade, classNum);
-      const existing = await store.kv.get('room:' + key);
+      const key = store.roomKey('', grade, classNum);
+      const found = await store.getRoomRecord(key);
+      const existing = found.room;
+      const migrated = found.migrated;
 
       if (!existing) {
-        const room = { school: school, grade: grade, classNum: classNum, teacherName: teacherName, pin: pin, createdAt: new Date().toISOString() };
+        const room = { grade: grade, classNum: classNum, teacherName: teacherName, pin: pin, createdAt: new Date().toISOString() };
         await store.kv.set('room:' + key, room, 60 * 60 * 24 * 400);
-        res.status(200).json({ ok: true, created: true, room: { school: school, grade: grade, classNum: classNum, teacherName: teacherName } });
+        res.status(200).json({ ok: true, created: true, room: { grade: grade, classNum: classNum, teacherName: teacherName }, migrated: migrated });
         return;
       }
 
@@ -56,29 +57,28 @@ module.exports = async function handler(req, res) {
         await store.kv.set('room:' + key, existing, 60 * 60 * 24 * 400);
       }
 
-      res.status(200).json({ ok: true, created: false, room: { school: school, grade: grade, classNum: classNum, teacherName: existing.teacherName } });
+      res.status(200).json({ ok: true, created: false, room: { grade: grade, classNum: classNum, teacherName: existing.teacherName }, migrated: migrated });
       return;
     }
 
     if (action === 'student-join') {
-      const school = store.normalize(body.school);
       const grade = store.normalize(body.grade);
       const classNum = store.normalize(body.classNum);
       const groupName = store.normalize(body.groupName);
 
-      if (!school || !grade || !classNum || !groupName) {
-        res.status(400).json({ error: '학교/학년/반/모둠 이름을 모두 입력해주세요.' });
+      if (!grade || !classNum || !groupName) {
+        res.status(400).json({ error: '학년/반/모둠 이름을 모두 입력해주세요.' });
         return;
       }
 
-      const key = store.roomKey(school, grade, classNum);
-      const room = await store.kv.get('room:' + key);
+      const key = store.roomKey('', grade, classNum);
+      const room = (await store.getRoomRecord(key)).room;
       if (!room) {
         res.status(404).json({ error: '아직 선생님이 이 반을 만들지 않았어요. 선생님께 먼저 "선생님 페이지"에서 반을 만들어달라고 요청해주세요.' });
         return;
       }
 
-      res.status(200).json({ ok: true, room: { school: school, grade: grade, classNum: classNum, teacherName: room.teacherName } });
+      res.status(200).json({ ok: true, room: { grade: grade, classNum: classNum, teacherName: room.teacherName } });
       return;
     }
 

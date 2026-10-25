@@ -78,6 +78,11 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 .empty{color:var(--muted);font-size:.9rem;padding:20px 0}
 .chat-log{flex:1;display:flex;flex-direction:column;gap:10px;padding:8px 0;overflow-y:auto}
 .bubble{max-width:78%;padding:10px 14px;border-radius:16px;font-size:.92rem;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.bubble-row{display:flex;flex-direction:column;gap:2px}
+.bubble-row-user{align-items:flex-end}
+.bubble-row-ai{align-items:flex-start}
+.msg-del{background:none;border:none;color:#B3432B;font-size:.72rem;cursor:pointer;padding:2px 6px;text-decoration:underline}
+.detail-note{font-size:.78rem;color:var(--muted);margin:0 0 8px}
 .bubble-ai{align-self:flex-start;background:var(--ai-bubble);border:1px solid var(--ai-bubble-border);border-bottom-left-radius:4px}
 .bubble-user{align-self:flex-end;background:var(--user-bubble);color:var(--user-bubble-ink);border-bottom-right-radius:4px}
 .toolbar{display:flex;gap:8px;margin-bottom:8px}
@@ -135,6 +140,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '  <main id="view-detail" class="view" hidden>',
     '    <button class="btn-back" type="button" id="btn-detail-back">← 목록으로</button>',
     '    <h2 id="detail-title" style="font-family:var(--font-display);font-size:1.05rem;margin:4px 0 10px"></h2>',
+    '    <p class="detail-note">이름 같은 개인정보가 들어간 줄은 "이 줄 삭제"로 지울 수 있어요.</p>',
     '    <div id="detail-log" class="chat-log"></div>',
     '  </main>',
     '  <main id="view-figures" class="view" hidden>',
@@ -264,24 +270,55 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     }).join('');
   }
 
+  function renderDetail(id, item){
+    state.detailId = id;
+    document.getElementById('detail-title').textContent = (item.groupName || '') + ' · ' + (item.figureName || '');
+    var log = document.getElementById('detail-log');
+    log.innerHTML = '';
+    var msgs = item.messages || [];
+    if(!msgs.length){
+      log.innerHTML = '<p class="empty">남은 대화가 없어요.</p>';
+    }
+    msgs.forEach(function(m, i){
+      var row = document.createElement('div');
+      row.className = 'bubble-row ' + (m.role==='user' ? 'bubble-row-user' : 'bubble-row-ai');
+      var b = document.createElement('div');
+      b.className = 'bubble ' + (m.role==='user' ? 'bubble-user' : 'bubble-ai');
+      b.textContent = m.content;
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'msg-del';
+      del.setAttribute('data-index', String(i));
+      del.textContent = '🗑 이 줄 삭제';
+      row.appendChild(b);
+      row.appendChild(del);
+      log.appendChild(row);
+    });
+  }
+
   function openDetail(id){
     fetch('/api/submissions', {
       method:'POST', headers:{'content-type':'application/json'},
       body: JSON.stringify({ action:'teacher-get', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id })
     }).then(function(r){ return r.json(); }).then(function(data){
       if(!data || !data.ok){ alert((data && data.error) || '불러오지 못했어요.'); return; }
-      var item = data.item;
-      document.getElementById('detail-title').textContent = (item.groupName || '') + ' · ' + (item.figureName || '');
-      var log = document.getElementById('detail-log');
-      log.innerHTML = '';
-      (item.messages || []).forEach(function(m){
-        var b = document.createElement('div');
-        b.className = 'bubble ' + (m.role==='user' ? 'bubble-user' : 'bubble-ai');
-        b.textContent = m.content;
-        log.appendChild(b);
-      });
+      renderDetail(id, data.item);
       showView('detail');
     }).catch(function(){ alert('네트워크 문제로 불러오지 못했어요.'); });
+  }
+
+  function deleteMessageLine(index){
+    var id = state.detailId;
+    if(!id) return;
+    if(!confirm('이 줄을 삭제할까요? 삭제하면 되돌릴 수 없고, 학생 기기에 저장된 기록에서도 다음에 열 때 함께 지워져요.')) return;
+    fetch('/api/submissions', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ action:'teacher-delete-messages', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id, indexes: [index] })
+    }).then(function(r){ return r.json(); }).then(function(data){
+      if(!data || !data.ok){ alert((data && data.error) || '삭제하지 못했어요.'); return; }
+      var title = document.getElementById('detail-title').textContent.split(' · ');
+      renderDetail(id, { groupName: title[0], figureName: title[1], messages: data.messages });
+    }).catch(function(){ alert('네트워크 문제로 삭제하지 못했어요.'); });
   }
 
   function renameItem(id){
@@ -559,6 +596,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       if(e.target.id === 'btn-figures'){ showFigureError(''); loadFigureManager(); showView('figures'); return; }
       if(e.target.id === 'btn-figures-back'){ showView('dashboard'); return; }
 
+      var msgDel = e.target.closest('.msg-del');
+      if(msgDel){ deleteMessageLine(Number(msgDel.getAttribute('data-index'))); return; }
       var viewBtn = e.target.closest('.act-view');
       if(viewBtn){ openDetail(viewBtn.getAttribute('data-id')); return; }
       var renameBtn = e.target.closest('.act-rename');

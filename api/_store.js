@@ -16,8 +16,10 @@ var kv = {
     if (!client) return null;
     return client.get(key);
   },
-  set: async function (key, value) {
+  // exSeconds를 주면 그 시간이 지난 뒤 자동으로 삭제됨 (개인정보 보유기간 관리)
+  set: async function (key, value, exSeconds) {
     if (!client) return null;
+    if (exSeconds) return client.set(key, value, { ex: exSeconds });
     return client.set(key, value);
   },
   // 여러 키를 한 번의 요청으로 읽음 (Redis 사용량 절약)

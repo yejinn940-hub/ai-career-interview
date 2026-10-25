@@ -40,7 +40,7 @@ module.exports = async function handler(req, res) {
 
       if (!existing) {
         const room = { school: school, grade: grade, classNum: classNum, teacherName: teacherName, pin: pin, createdAt: new Date().toISOString() };
-        await store.kv.set('room:' + key, room);
+        await store.kv.set('room:' + key, room, 60 * 60 * 24 * 400);
         res.status(200).json({ ok: true, created: true, room: { school: school, grade: grade, classNum: classNum, teacherName: teacherName } });
         return;
       }
@@ -53,7 +53,7 @@ module.exports = async function handler(req, res) {
       // 성함은 최신 입력으로 갱신(오타 수정 등 허용)
       if (existing.teacherName !== teacherName) {
         existing.teacherName = teacherName;
-        await store.kv.set('room:' + key, existing);
+        await store.kv.set('room:' + key, existing, 60 * 60 * 24 * 400);
       }
 
       res.status(200).json({ ok: true, created: false, room: { school: school, grade: grade, classNum: classNum, teacherName: existing.teacherName } });

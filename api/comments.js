@@ -56,7 +56,7 @@ module.exports = async function handler(req, res) {
       const comment = { id: genId(), messageIndex: messageIndex, groupName: groupName, text: text, createdAt: new Date().toISOString() };
       list.push(comment);
       if (list.length > MAX_COMMENTS_PER_SUBMISSION) list.splice(0, list.length - MAX_COMMENTS_PER_SUBMISSION);
-      await store.kv.set(storeKey, list);
+      await store.kv.set(storeKey, list, 60 * 60 * 24 * 30);
       res.status(200).json({ ok: true, comment: comment });
       return;
     }

@@ -645,11 +645,29 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     }).then(function(r){ return r.json(); }).then(function(data){
       if(data && data.ok && Array.isArray(data.ids)){
         var serverIds = data.ids;
+        var revs = data.revs || {};
         var list = loadArchive();
         var kept = list.filter(function(item){
           return !item.groupName || serverIds.indexOf(item.id) !== -1;
         });
         if(kept.length !== list.length){ saveArchiveList(kept); }
+        // 선생님이 대화 줄을 지운 기록은, 이 기기에 저장된 내용도 최신(지운 뒤) 내용으로 바꾼다.
+        var stale = kept.filter(function(item){
+          return item.groupName && revs[item.id] && revs[item.id] > (item.rev || 0);
+        });
+        return Promise.all(stale.map(function(item){
+          return fetch('/api/submissions', {
+            method:'POST',
+            headers:{'content-type':'application/json'},
+            body: JSON.stringify({ action:'student-get', school: state.room.school, grade: state.room.grade, classNum: state.room.classNum, id: item.id, groupName: item.groupName })
+          }).then(function(r){ return r.json(); }).then(function(d){
+            if(d && d.ok && Array.isArray(d.messages)){
+              var cur = loadArchive();
+              var target = cur.filter(function(x){ return x.id === item.id; })[0];
+              if(target){ target.messages = d.messages; target.rev = d.rev || 0; saveArchiveList(cur); }
+            }
+          }).catch(function(){});
+        }));
       }
     }).catch(function(){ /* 네트워크 문제면 정리는 건너뛰고 기존 목록 그대로 보여줌 */ })
       .then(function(){ if(done) done(); });

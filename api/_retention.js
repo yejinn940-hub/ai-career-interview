@@ -1,0 +1,6 @@
+// 개인정보 보유기간: 면담 대화·댓글은 7일 (처리방침 제3조·제7조와 같은 값)
+const RETENTION_DAYS = 7;
+const RETENTION_MS = RETENTION_DAYS * 24 * 60 * 60 * 1000;
+const RETENTION_SEC = RETENTION_DAYS * 24 * 60 * 60;
+
+module.exports = { RETENTION_DAYS: RETENTION_DAYS, RETENTION_MS: RETENTION_MS, RETENTION_SEC: RETENTION_SEC };

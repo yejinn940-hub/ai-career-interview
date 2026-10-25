@@ -4,9 +4,7 @@ const { maskPersonalInfo } = require('./_mask');
 
 const MAX_RECORDS = 300;
 // 개인정보 보유기간: 마지막 수정으로부터 7일이 지난 면담 기록은 자동으로 삭제됨
-const RETENTION_DAYS = 7;
-const RETENTION_MS = RETENTION_DAYS * 24 * 60 * 60 * 1000;
-const RETENTION_SEC = RETENTION_DAYS * 24 * 60 * 60;
+const { RETENTION_MS, RETENTION_SEC } = require('./_retention');
 
 function isFresh(rec) {
   const t = new Date(rec.updatedAt || rec.startedAt || 0).getTime();

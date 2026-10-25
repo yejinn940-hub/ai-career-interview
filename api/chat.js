@@ -1,5 +1,6 @@
 const { getFigures } = require('./_figures');
 const { maskPersonalInfo } = require('./_mask');
+const { answer: scriptedAnswer } = require('./_scripted');
 
 function buildSystemPrompt(f) {
   return [
@@ -41,11 +42,6 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    res.status(500).json({ error: '서버에 API 키가 설정되어 있지 않아요. 관리자에게 알려주세요.' });
-    return;
-  }
-
   let body = req.body;
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch (e) { body = {}; }
@@ -78,6 +74,13 @@ module.exports = async function handler(req, res) {
   const cleanMessages = messages
     .filter(function (m) { return m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string'; })
     .map(function (m) { return { role: m.role, content: maskPersonalInfo(m.content.slice(0, 2000)) }; });
+
+  // API 키가 없거나 FREE_MODE=1이면 AI를 부르지 않고(무료), 자료에서 답을 찾아 보여 준다.
+  if (!process.env.ANTHROPIC_API_KEY || process.env.FREE_MODE === '1') {
+    const lastUser = cleanMessages.filter(function (m) { return m.role === 'user'; }).pop();
+    res.status(200).json({ text: scriptedAnswer(figure, lastUser ? lastUser.content : '') });
+    return;
+  }
 
   async function callAnthropic() {
     const apiRes = await fetch('https://api.anthropic.com/v1/messages', {

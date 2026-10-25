@@ -1,4 +1,5 @@
 const { getFigures } = require('./_figures');
+const { maskPersonalInfo } = require('./_mask');
 
 function buildSystemPrompt(f) {
   return [
@@ -76,7 +77,7 @@ module.exports = async function handler(req, res) {
 
   const cleanMessages = messages
     .filter(function (m) { return m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string'; })
-    .map(function (m) { return { role: m.role, content: m.content.slice(0, 2000) }; });
+    .map(function (m) { return { role: m.role, content: maskPersonalInfo(m.content.slice(0, 2000)) }; });
 
   async function callAnthropic() {
     const apiRes = await fetch('https://api.anthropic.com/v1/messages', {

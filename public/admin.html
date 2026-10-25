@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>AI가상면담 - 관리자</title>
+<style>
+body{margin:0;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-serif;background:#F2F4F8;color:#1C2430}
+@media (prefers-color-scheme:dark){body{background:#121722;color:#E8ECF2}.card{background:#1B222E!important;border-color:#2E3847!important}}
+.wrap{max-width:640px;margin:0 auto;padding:20px}
+h1{font-size:1.2rem;margin:0 0 12px}
+.card{background:#fff;border:1px solid #E1E5EC;border-radius:14px;padding:12px 14px;margin:8px 0}
+.meta{font-size:.78rem;color:#667085}
+input{font:inherit;padding:10px 12px;border-radius:10px;border:1px solid #C9CFDA;width:100%;box-sizing:border-box;margin:6px 0}
+button{border:none;border-radius:999px;padding:10px 16px;font-size:.85rem;cursor:pointer;font-weight:700;background:#D98A2B;color:#fff}
+.err{color:#B3432B;font-size:.85rem}
+.total{font-size:1.1rem;font-weight:700;margin:10px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>관리자 – 만들어진 반</h1>
+  <div id="login">
+    <p class="meta">앱 운영자만 볼 수 있어요. 관리자 비밀번호를 입력하세요.</p>
+    <input id="pin" type="password" autocomplete="off" placeholder="관리자 비밀번호">
+    <button id="enter" type="button" style="width:100%">들어가기</button>
+    <p id="err" class="err"></p>
+  </div>
+  <div id="main" hidden>
+    <div id="total" class="total"></div>
+    <div id="list"></div>
+  </div>
+</div>
+<script>
+(function(){
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+  function go(){
+    var pin = document.getElementById('pin').value;
+    document.getElementById('err').textContent = '';
+    fetch('/api/admin', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({action:'list', adminPin: pin})})
+      .then(function(r){ return r.json().then(function(d){ return {ok:r.ok, data:d}; }); })
+      .then(function(res){
+        if(!res.ok){ document.getElementById('err').textContent = res.data.error || '불러오지 못했어요.'; return; }
+        document.getElementById('login').hidden = true; document.getElementById('main').hidden = false;
+        var items = res.data.items || [];
+        document.getElementById('total').textContent = '만들어진 반: 총 ' + res.data.count + '개';
+        document.getElementById('list').innerHTML = items.map(function(it){
+          return '<div class="card"><strong>' + esc(it.teacherName) + ' 선생님 · ' + esc(it.grade) + '학년 ' + esc(it.classNum) + '반</strong>'
+            + '<div class="meta">만든 날 ' + esc((it.createdAt || '(기록 없음)').slice(0, 10)) + ' · 저장된 면담 ' + it.submissions + '개</div></div>';
+        }).join('');
+      }).catch(function(){ document.getElementById('err').textContent = '네트워크 문제로 불러오지 못했어요.'; });
+  }
+  document.getElementById('enter').addEventListener('click', go);
+  document.getElementById('pin').addEventListener('keydown', function(e){ if(e.key === 'Enter'){ go(); } });
+})();
+</script>
+</body>
+</html>

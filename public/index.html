@@ -191,7 +191,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '    <div id="chat-log" class="chat-log" aria-live="polite"></div>',
     '    <p id="name-warning" class="name-warning" hidden></p>',
     '    <form id="chat-form" class="chat-form">',
-    '      <input id="chat-input" autocomplete="off" placeholder="인사부터 시작해보세요 (이름은 쓰지 않아요)" />',
+    '      <input id="chat-input" autocomplete="off" placeholder="인사부터 시작해보세요 (학교·이름은 쓰지 않아요)" />',
     '      <button type="submit" class="btn-send" aria-label="보내기">➤</button>',
     '    </form>',
     '  </main>',
@@ -950,7 +950,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       if(found && lastWarnedText !== text){
         // 처음에는 보내지 않고 안내한다. 이름이 아니라면 같은 글을 한 번 더 보내면 전송된다.
         lastWarnedText = text;
-        warn.textContent = found + ' 이름·전화번호 같은 개인정보는 쓰지 않아요. "OO초 O학년 O반 O모둠 학생들입니다"처럼 소개해 주세요. (개인정보가 아니라면 같은 글을 한 번 더 보내기 해요.)';
+        warn.textContent = found + '이(가) 들어 있는 것 같아요. 학교 이름, 내 이름, 전화번호 같은 개인정보는 쓰지 않아요. "O학년 O반 O모둠 학생들입니다"처럼 소개해 주세요. (개인정보가 아니라면 같은 글을 한 번 더 보내기 해요.)';
         warn.hidden = false;
         return;
       }
@@ -972,18 +972,20 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 
   function findPersonalInfo(text){
     var t = String(text);
-    if(/01[016789][\s-]?\d{3,4}[\s-]?\d{4}/.test(t)) return '전화번호가 들어 있는 것 같아요.';
-    if(/[\w.+-]+@[\w-]+\.[\w.]+/.test(t)) return '메일 주소가 들어 있는 것 같아요.';
+    if(/01[016789][\s-]?\d{3,4}[\s-]?\d{4}/.test(t)) return '전화번호';
+    if(/[\w.+-]+@[\w-]+\.[\w.]+/.test(t)) return '메일 주소';
+    // 학교 이름: ○○초등학교, ○○중학교, ○○고등학교, ○○초 (2글자 이상 + 초). '최초'처럼 한 글자+초는 제외
+    if(/[가-힣]{2,8}(?:초등학교|중학교|고등학교)/.test(t) || /[가-힣]{2,6}초(?:에|를|은|는|이|가|의|와|과|로|도|만|예|$|[^가-힣])/.test(t)) return '학교 이름';
     // "제 이름은 ○○○" 처럼 이름을 직접 말하는 경우
     var m = t.match(/이름[은이는]?\s*([가-힣]{2,4})/);
-    if(m && NOT_NAMES.indexOf(m[1]) === -1) return '이름이 들어 있는 것 같아요.';
+    if(m && NOT_NAMES.indexOf(m[1]) === -1) return '이름';
     // "…김예진입니다 / 김예진이에요 / 김예진이라고 합니다" 처럼 끝에 이름이 오는 경우
     var re = /([가-힣]{2,4})\s*(?:입니다|이에요|예요|이라고|라고|이야|이고)/g, x;
     while((x = re.exec(t))){
       var w = x[1];
       if(NOT_NAMES.indexOf(w) !== -1) continue;
       if(/(모둠|학년|학교|초|반|학생|들)$/.test(w)) continue;
-      if(w.length >= 2 && w.length <= 4 && SURNAMES.indexOf(w.charAt(0)) !== -1) return '이름이 들어 있는 것 같아요.';
+      if(w.length >= 2 && w.length <= 4 && SURNAMES.indexOf(w.charAt(0)) !== -1) return '이름';
     }
     return '';
   }

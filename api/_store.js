@@ -157,4 +157,26 @@ function roomBlock(room) {
     : '이 반은 사용이 중지되었어요.';
 }
 
-module.exports = { roomBlock: roomBlock, kv: kv, normalize: normalize, roomKey: roomKey, isConfigured: isConfigured, migrateSchoolKeys: migrateSchoolKeys, getRoomRecord: getRoomRecord };
+
+// ---- PIN은 해시로 저장 (예전에 평문으로 저장된 반은 다음 로그인 때 자동으로 해시로 바뀜) ----
+var crypto = require('crypto');
+function hashPin(pin) {
+  var salt = crypto.randomBytes(12).toString('hex');
+  var h = crypto.scryptSync(String(pin), salt, 32).toString('hex');
+  return 'h1$' + salt + '$' + h;
+}
+function verifyPin(room, pin) {
+  if (!room || !room.pin) return false;
+  var stored = String(room.pin);
+  var given = String(pin || '');
+  if (stored.indexOf('h1$') === 0) {
+    var parts = stored.split('$');
+    var h = crypto.scryptSync(given, parts[1], 32);
+    var expected = Buffer.from(parts[2], 'hex');
+    return h.length === expected.length && crypto.timingSafeEqual(h, expected);
+  }
+  var a = Buffer.from(stored), b = Buffer.from(given);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+module.exports = { hashPin: hashPin, verifyPin: verifyPin, roomBlock: roomBlock, kv: kv, normalize: normalize, roomKey: roomKey, isConfigured: isConfigured, migrateSchoolKeys: migrateSchoolKeys, getRoomRecord: getRoomRecord };

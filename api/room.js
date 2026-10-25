@@ -42,15 +42,21 @@ module.exports = async function handler(req, res) {
       if (!existing) {
         // 새 반은 '승인 대기'로 만들어지고, 관리자가 승인해야 학생이 들어오고 면담을 쓸 수 있다.
         const autoOk = process.env.AUTO_APPROVE === '1';
-        const room = { grade: grade, classNum: classNum, teacherName: teacherName, pin: pin, status: autoOk ? 'approved' : 'pending', createdAt: new Date().toISOString() };
+        const room = { grade: grade, classNum: classNum, teacherName: teacherName, pin: store.hashPin(pin), status: autoOk ? 'approved' : 'pending', createdAt: new Date().toISOString() };
         await store.kv.set('room:' + key, room, 60 * 60 * 24 * 400);
         res.status(200).json({ ok: true, created: true, status: autoOk ? 'approved' : 'pending', message: autoOk ? '' : '반을 만들었어요. 관리자가 승인하면 사용할 수 있어요.', room: { grade: grade, classNum: classNum, teacherName: teacherName }, migrated: migrated });
         return;
       }
 
-      if (existing.pin !== pin) {
+      if (!store.verifyPin(existing, pin)) {
         res.status(403).json({ error: 'PIN이 일치하지 않아요. 처음 반을 만들 때 설정한 PIN을 입력해주세요.' });
         return;
+      }
+
+      // 예전 평문 PIN은 로그인에 성공하면 해시로 바꿔 저장
+      if (String(existing.pin).indexOf('h1$') !== 0) {
+        existing.pin = store.hashPin(pin);
+        await store.kv.set('room:' + key, existing, 60 * 60 * 24 * 400);
       }
 
       // 성함은 최신 입력으로 갱신(오타 수정 등 허용)

@@ -65,7 +65,7 @@ module.exports = async function handler(req, res) {
 
     // 선생님 전용: 다른 학생이 남긴 피드백(댓글) 삭제 (PIN 필요)
     if (action === 'teacher-delete') {
-      if (String(room.pin) !== String(body.pin || '')) { res.status(403).json({ error: 'PIN이 일치하지 않아요.' }); return; }
+      if (!store.verifyPin(room, body.pin)) { res.status(403).json({ error: 'PIN이 일치하지 않아요.' }); return; }
       const commentId = String(body.commentId || '');
       const list = (await store.kv.get(storeKey)) || [];
       const next = list.filter(function (c) { return c.id !== commentId; });

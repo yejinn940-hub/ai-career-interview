@@ -4,7 +4,7 @@ const { getFigures, saveFigures, genFigureId } = require('./_figures');
 async function checkTeacherAuth(body) {
   const key = store.roomKey(body.teacherName, body.grade, body.classNum);
   const room = (await store.getRoomRecord(key)).room;
-  return !!(room && !store.roomBlock(room) && String(room.pin) === String(body.pin || ''));
+  return !!(room && !store.roomBlock(room) && store.verifyPin(room, body.pin));
 }
 
 module.exports = async function handler(req, res) {

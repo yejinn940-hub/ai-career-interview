@@ -211,7 +211,7 @@ module.exports = async function handler(req, res) {
 
     // ---- 아래부터는 선생님 전용 (PIN 필요) ----
     function checkPin(room, pin) {
-      return room && String(room.pin) === String(pin || '');
+      return room && store.verifyPin(room, pin);
     }
 
     if (action === 'teacher-list') {

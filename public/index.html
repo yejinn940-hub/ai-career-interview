@@ -68,6 +68,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 .bubble{max-width:78%;padding:10px 14px;border-radius:16px;font-size:.92rem;line-height:1.45;white-space:pre-wrap;word-break:break-word}
 .bubble-ai{align-self:flex-start;background:var(--ai-bubble);border:1px solid var(--ai-bubble-border);border-bottom-left-radius:4px}
 .bubble-user{align-self:flex-end;background:var(--user-bubble);color:var(--user-bubble-ink);border-bottom-right-radius:4px}
+.name-warning{background:#FDECEA;color:#B3432B;font-size:.8rem;line-height:1.45;padding:8px 12px;border-radius:12px;margin:6px 0 0}
+.btn-clear-all{align-self:flex-start;background:none;border:1px solid #B3432B;color:#B3432B;font-size:.8rem;border-radius:999px;padding:8px 14px;cursor:pointer;margin-top:16px}
 .bubble-pending{opacity:.65}
 .chat-form{display:flex;gap:8px;padding:10px 0 4px;position:sticky;bottom:0;background:var(--bg)}
 .chat-form input{flex:1;min-width:0;font:inherit;font-family:var(--font-body);background:var(--surface);color:var(--ink);border:1px solid var(--ai-bubble-border);border-radius:999px;padding:12px 16px}
@@ -126,7 +128,6 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 </head>
 <body>
 <div id="root"></div>
-<script src="/legal.js"></script>
 <script>
 (function(){
   'use strict';
@@ -197,8 +198,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '      <button type="button" id="btn-submit" class="primary">📨 면담자료제출</button>',
     '    </div>',
     '    <div id="chat-log" class="chat-log" aria-live="polite"></div>',
+    '    <p id="name-warning" class="name-warning" hidden></p>',
     '    <form id="chat-form" class="chat-form">',
-    '      <input id="chat-input" autocomplete="off" placeholder="인사부터 시작해보세요" />',
+    '      <input id="chat-input" autocomplete="off" placeholder="인사부터 시작해보세요 (이름은 쓰지 않아요)" />',
     '      <button type="submit" class="btn-send" aria-label="보내기">➤</button>',
     '    </form>',
     '  </main>',
@@ -207,6 +209,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '    <h2 style="font-family:var(--font-display);font-size:1.05rem;margin:4px 0 10px">저장된 면담 기록</h2>',
     '    <p class="disclaimer small" style="color:#E53E3E">이 기기(브라우저)에만 저장돼요. 다른 기기에서는 보이지 않아요.</p>',
     '    <div id="archive-list" class="archive-list"></div>',
+    '    <button type="button" id="btn-clear-all" class="btn-clear-all">🗑 이 기기에 저장된 기록 전체 지우기</button>',
     '  </main>',
     '  <main id="view-shared" class="view" hidden>',
     '    <button class="btn-back" type="button" id="btn-shared-back">← 홈으로</button>',
@@ -221,7 +224,6 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '    </div>',
     '    <div id="archive-detail-log" class="archive-detail-log"></div>',
     '  </main>',
-    (window.LEGAL_FOOTER_HTML || ''),
     '</div>'
   ].join('\n');
 
@@ -907,6 +909,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
         return;
       }
       if(e.target.id === 'btn-archive-back'){ showView('home'); return; }
+      if(e.target.id === 'btn-clear-all'){ clearAllLocalRecords(); return; }
       if(e.target.id === 'btn-archive-detail-back'){
         if(DETAIL_RETURN_VIEW === 'shared'){ renderSharedList(); showView('shared'); }
         else {
@@ -952,6 +955,17 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       var input = document.getElementById('chat-input');
       var text = input.value.trim();
       if(!text) return;
+      var warn = document.getElementById('name-warning');
+      var found = findPersonalInfo(text);
+      if(found && lastWarnedText !== text){
+        // 처음에는 보내지 않고 안내한다. 이름이 아니라면 같은 글을 한 번 더 보내면 전송된다.
+        lastWarnedText = text;
+        warn.textContent = found + ' 이름·전화번호 같은 개인정보는 쓰지 않아요. "OO초 O학년 O반 O모둠 학생들입니다"처럼 소개해 주세요. (개인정보가 아니라면 같은 글을 한 번 더 보내기 해요.)';
+        warn.hidden = false;
+        return;
+      }
+      lastWarnedText = '';
+      warn.hidden = true;
       input.value = '';
       sendMessage(text);
     });
@@ -959,6 +973,37 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     window.addEventListener('beforeunload', function(){
       syncToServer();
     });
+  }
+
+  // ---------- 개인정보(이름·전화번호·메일) 입력 방지 ----------
+  var lastWarnedText = '';
+  var SURNAMES = '김이박최정강조윤장임한오서신권황안송류전홍고문양손배백허유남심노하곽성차주우구민나진지엄채원천방공현함변염여추도소석선설마길연위표명기반왕금옥육인맹제모탁국어은편용예경봉사부';
+  var NOT_NAMES = ['학생들','학생','모둠','어린이','친구들','친구','초등학교','학교','제자','기자','리포터','기사','진행자','면담자','인터뷰어'];
+
+  function findPersonalInfo(text){
+    var t = String(text);
+    if(/01[016789][\s-]?\d{3,4}[\s-]?\d{4}/.test(t)) return '전화번호가 들어 있는 것 같아요.';
+    if(/[\w.+-]+@[\w-]+\.[\w.]+/.test(t)) return '메일 주소가 들어 있는 것 같아요.';
+    // "제 이름은 ○○○" 처럼 이름을 직접 말하는 경우
+    var m = t.match(/이름[은이는]?\s*([가-힣]{2,4})/);
+    if(m && NOT_NAMES.indexOf(m[1]) === -1) return '이름이 들어 있는 것 같아요.';
+    // "…김예진입니다 / 김예진이에요 / 김예진이라고 합니다" 처럼 끝에 이름이 오는 경우
+    var re = /([가-힣]{2,4})\s*(?:입니다|이에요|예요|이라고|라고|이야|이고)/g, x;
+    while((x = re.exec(t))){
+      var w = x[1];
+      if(NOT_NAMES.indexOf(w) !== -1) continue;
+      if(/(모둠|학년|학교|초|반|학생|들)$/.test(w)) continue;
+      if(w.length >= 2 && w.length <= 4 && SURNAMES.indexOf(w.charAt(0)) !== -1) return '이름이 들어 있는 것 같아요.';
+    }
+    return '';
+  }
+
+  function clearAllLocalRecords(){
+    if(!confirm('이 기기에 저장된 면담 기록을 모두 지울까요? 지우면 되돌릴 수 없어요.\n(이미 선생님께 제출된 기록은 선생님 쪽에 남아 있고, 선생님이 지울 수 있어요.)')) return;
+    try{ localStorage.removeItem(ARCHIVE_KEY); localStorage.removeItem(STORAGE_KEY); }catch(e){ /* noop */ }
+    state.messages = [];
+    state.conversationId = null;
+    renderArchiveList();
   }
 
   function init(){

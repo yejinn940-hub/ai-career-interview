@@ -126,6 +126,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 </head>
 <body>
 <div id="root"></div>
+<script src="/legal.js"></script>
 <script>
 (function(){
   'use strict';
@@ -220,6 +221,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '    </div>',
     '    <div id="archive-detail-log" class="archive-detail-log"></div>',
     '  </main>',
+    (window.LEGAL_FOOTER_HTML || ''),
     '</div>'
   ].join('\n');
 

@@ -22,6 +22,10 @@ var kv = {
     if (exSeconds) return client.set(key, value, { ex: exSeconds });
     return client.set(key, value);
   },
+  del: async function (key) {
+    if (!client) return null;
+    return client.del(key);
+  },
   // 여러 키를 한 번의 요청으로 읽음 (Redis 사용량 절약)
   mget: async function (keys) {
     if (!client) return keys.map(function () { return null; });

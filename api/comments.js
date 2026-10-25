@@ -61,6 +61,18 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    // 선생님 전용: 다른 학생이 남긴 피드백(댓글) 삭제 (PIN 필요)
+    if (action === 'teacher-delete') {
+      if (String(room.pin) !== String(body.pin || '')) { res.status(403).json({ error: 'PIN이 일치하지 않아요.' }); return; }
+      const commentId = String(body.commentId || '');
+      const list = (await store.kv.get(storeKey)) || [];
+      const next = list.filter(function (c) { return c.id !== commentId; });
+      if (next.length === list.length) { res.status(404).json({ error: '피드백을 찾지 못했어요.' }); return; }
+      await store.kv.set(storeKey, next, 60 * 60 * 24 * 30);
+      res.status(200).json({ ok: true, items: next });
+      return;
+    }
+
     res.status(400).json({ error: '알 수 없는 요청이에요.' });
   } catch (err) {
     console.error(err);

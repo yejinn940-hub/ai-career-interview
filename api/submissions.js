@@ -227,7 +227,8 @@ module.exports = async function handler(req, res) {
       const list = await getList(key);
       const rec = list.filter(function (x) { return x.id === body.id; })[0];
       if (!rec) { res.status(404).json({ error: '대화를 찾지 못했어요.' }); return; }
-      res.status(200).json({ ok: true, item: rec });
+      const comments = await store.kv.get('comments:' + key + ':' + rec.id);
+      res.status(200).json({ ok: true, item: rec, comments: Array.isArray(comments) ? comments : [] });
       return;
     }
 
@@ -287,6 +288,7 @@ module.exports = async function handler(req, res) {
       if (!checkPin(room, body.pin)) { res.status(403).json({ error: 'PIN이 일치하지 않아요.' }); return; }
       const list = (await getList(key)).filter(function (x) { return x.id !== body.id; });
       await saveList(key, list);
+      await store.kv.del('comments:' + key + ':' + String(body.id || ''));
       res.status(200).json({ ok: true });
       return;
     }

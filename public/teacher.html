@@ -82,6 +82,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 .bubble-row-user{align-items:flex-end}
 .bubble-row-ai{align-items:flex-start}
 .msg-del{background:none;border:none;color:#B3432B;font-size:.72rem;cursor:pointer;padding:2px 6px;text-decoration:underline}
+.cmt-row{display:flex;align-items:flex-start;gap:6px;max-width:78%;font-size:.78rem;background:var(--surface-2);border-radius:10px;padding:5px 10px}
+.cmt-row strong{margin-right:4px}
+.cmt-del{background:none;border:none;color:#B3432B;font-size:.72rem;cursor:pointer;padding:0 2px;text-decoration:underline;flex:none}
 .detail-note{font-size:.78rem;color:var(--muted);margin:0 0 8px}
 .bubble-ai{align-self:flex-start;background:var(--ai-bubble);border:1px solid var(--ai-bubble-border);border-bottom-left-radius:4px}
 .bubble-user{align-self:flex-end;background:var(--user-bubble);color:var(--user-bubble-ink);border-bottom-right-radius:4px}
@@ -140,7 +143,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '  <main id="view-detail" class="view" hidden>',
     '    <button class="btn-back" type="button" id="btn-detail-back">← 목록으로</button>',
     '    <h2 id="detail-title" style="font-family:var(--font-display);font-size:1.05rem;margin:4px 0 10px"></h2>',
-    '    <p class="detail-note">이름 같은 개인정보가 들어간 줄은 "이 줄 삭제"로 지울 수 있어요.</p>',
+    '    <p class="detail-note">이름 같은 개인정보가 들어간 줄과 다른 모둠이 남긴 피드백은 "삭제"로 지울 수 있어요.</p>',
     '    <div id="detail-log" class="chat-log"></div>',
     '  </main>',
     '  <main id="view-figures" class="view" hidden>',
@@ -270,7 +273,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     }).join('');
   }
 
-  function renderDetail(id, item){
+  function renderDetail(id, item, comments){
     state.detailId = id;
     document.getElementById('detail-title').textContent = (item.groupName || '') + ' · ' + (item.figureName || '');
     var log = document.getElementById('detail-log');
@@ -292,6 +295,23 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       del.textContent = '🗑 이 줄 삭제';
       row.appendChild(b);
       row.appendChild(del);
+      (comments || []).filter(function(c){ return Number(c.messageIndex) === i; }).forEach(function(c){
+        var cr = document.createElement('div');
+        cr.className = 'cmt-row';
+        var txt = document.createElement('span');
+        var who = document.createElement('strong');
+        who.textContent = (c.groupName || '') + ':';
+        txt.appendChild(who);
+        txt.appendChild(document.createTextNode(c.text || ''));
+        var cd = document.createElement('button');
+        cd.type = 'button';
+        cd.className = 'cmt-del';
+        cd.setAttribute('data-cid', c.id);
+        cd.textContent = '삭제';
+        cr.appendChild(txt);
+        cr.appendChild(cd);
+        row.appendChild(cr);
+      });
       log.appendChild(row);
     });
   }
@@ -302,9 +322,24 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       body: JSON.stringify({ action:'teacher-get', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id })
     }).then(function(r){ return r.json(); }).then(function(data){
       if(!data || !data.ok){ alert((data && data.error) || '불러오지 못했어요.'); return; }
-      renderDetail(id, data.item);
+      state.detailItem = data.item;
+      state.detailComments = data.comments || [];
+      renderDetail(id, data.item, state.detailComments);
       showView('detail');
     }).catch(function(){ alert('네트워크 문제로 불러오지 못했어요.'); });
+  }
+
+  function deleteComment(cid){
+    var id = state.detailId;
+    if(!id || !cid) return;
+    if(!confirm('이 피드백을 삭제할까요? 되돌릴 수 없어요.')) return;
+    fetch('/api/comments', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ action:'teacher-delete', school: state.auth.school, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, submissionId: id, commentId: cid })
+    }).then(function(r){ return r.json(); }).then(function(data){
+      if(!data || !data.ok){ alert((data && data.error) || '삭제하지 못했어요.'); return; }
+      openDetail(id);
+    }).catch(function(){ alert('네트워크 문제로 삭제하지 못했어요.'); });
   }
 
   function deleteMessageLine(index){
@@ -317,7 +352,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     }).then(function(r){ return r.json(); }).then(function(data){
       if(!data || !data.ok){ alert((data && data.error) || '삭제하지 못했어요.'); return; }
       var title = document.getElementById('detail-title').textContent.split(' · ');
-      renderDetail(id, { groupName: title[0], figureName: title[1], messages: data.messages });
+      openDetail(id);
     }).catch(function(){ alert('네트워크 문제로 삭제하지 못했어요.'); });
   }
 
@@ -596,6 +631,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       if(e.target.id === 'btn-figures'){ showFigureError(''); loadFigureManager(); showView('figures'); return; }
       if(e.target.id === 'btn-figures-back'){ showView('dashboard'); return; }
 
+      var cmtDel = e.target.closest('.cmt-del');
+      if(cmtDel){ deleteComment(cmtDel.getAttribute('data-cid')); return; }
       var msgDel = e.target.closest('.msg-del');
       if(msgDel){ deleteMessageLine(Number(msgDel.getAttribute('data-index'))); return; }
       var viewBtn = e.target.closest('.act-view');

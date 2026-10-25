@@ -40,14 +40,11 @@ module.exports = async function handler(req, res) {
       const migrated = found.migrated;
 
       if (!existing) {
-        // 새 반 만들기는 운영자가 허용했을 때만 가능 (환경변수 ALLOW_NEW_ROOMS=1). 기본은 막혀 있음.
-        if (process.env.ALLOW_NEW_ROOMS !== '1') {
-          res.status(403).json({ error: '지금은 새 반을 만들 수 없어요. 이 앱은 현재 제한된 선생님만 사용할 수 있어요.' });
-          return;
-        }
-        const room = { grade: grade, classNum: classNum, teacherName: teacherName, pin: pin, createdAt: new Date().toISOString() };
+        // 새 반은 '승인 대기'로 만들어지고, 관리자가 승인해야 학생이 들어오고 면담을 쓸 수 있다.
+        const autoOk = process.env.AUTO_APPROVE === '1';
+        const room = { grade: grade, classNum: classNum, teacherName: teacherName, pin: pin, status: autoOk ? 'approved' : 'pending', createdAt: new Date().toISOString() };
         await store.kv.set('room:' + key, room, 60 * 60 * 24 * 400);
-        res.status(200).json({ ok: true, created: true, room: { grade: grade, classNum: classNum, teacherName: teacherName }, migrated: migrated });
+        res.status(200).json({ ok: true, created: true, status: autoOk ? 'approved' : 'pending', message: autoOk ? '' : '반을 만들었어요. 관리자가 승인하면 사용할 수 있어요.', room: { grade: grade, classNum: classNum, teacherName: teacherName }, migrated: migrated });
         return;
       }
 
@@ -62,7 +59,7 @@ module.exports = async function handler(req, res) {
         await store.kv.set('room:' + key, existing, 60 * 60 * 24 * 400);
       }
 
-      res.status(200).json({ ok: true, created: false, room: { grade: grade, classNum: classNum, teacherName: existing.teacherName }, migrated: migrated });
+      res.status(200).json({ ok: true, created: false, status: existing.status || 'approved', message: store.roomBlock(existing), room: { grade: grade, classNum: classNum, teacherName: existing.teacherName }, migrated: migrated });
       return;
     }
 
@@ -84,6 +81,8 @@ module.exports = async function handler(req, res) {
         return;
       }
 
+      const blocked = store.roomBlock(room);
+      if (blocked) { res.status(403).json({ error: blocked, blocked: true }); return; }
       res.status(200).json({ ok: true, room: { grade: grade, classNum: classNum, teacherName: room.teacherName } });
       return;
     }

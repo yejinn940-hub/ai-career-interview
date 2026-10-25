@@ -33,6 +33,8 @@ module.exports = async function handler(req, res) {
     const key = store.roomKey(body.teacherName, body.grade, body.classNum);
     const room = (await store.getRoomRecord(key)).room;
     if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
+    const blocked = store.roomBlock(room);
+    if (blocked) { res.status(403).json({ error: blocked, blocked: true }); return; }
 
     const submissionId = String(body.submissionId || '');
     if (!submissionId) { res.status(400).json({ error: '면담 정보를 찾을 수 없어요.' }); return; }

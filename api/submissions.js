@@ -189,7 +189,15 @@ module.exports = async function handler(req, res) {
       if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
       const list = await getList(key);
       const shared = list.filter(function (x) { return x.shared; })
-        .sort(function (a, b) { return new Date(b.updatedAt) - new Date(a.updatedAt); })
+        .sort(function (a, b) {
+          // 모둠 번호 오름차순(1모둠, 2모둠, … 10모둠), 같은 모둠이면 최근 수정 순
+          function num(x) { var m = String(x.groupName || '').match(/\d+/); return m ? parseInt(m[0], 10) : 9999; }
+          var d = num(a) - num(b);
+          if (d) return d;
+          var n = String(a.groupName || '').localeCompare(String(b.groupName || ''), 'ko');
+          if (n) return n;
+          return new Date(b.updatedAt) - new Date(a.updatedAt);
+        })
         .map(function (x) {
           return { id: x.id, groupName: x.groupName, figureName: x.figureName, figureJob: x.figureJob, messages: x.messages, updatedAt: x.updatedAt };
         });

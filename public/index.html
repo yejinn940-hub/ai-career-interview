@@ -950,10 +950,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       if(!text) return;
       var warn = document.getElementById('name-warning');
       var found = findPersonalInfo(text);
-      if(found && lastWarnedText !== text){
-        // 처음에는 보내지 않고 안내한다. 이름이 아니라면 같은 글을 한 번 더 보내면 전송된다.
+      if(found){
+        // 학교 이름·이름·전화번호 등이 들어 있으면 보내지 않고, 지우고 다시 쓰도록 안내한다.
         lastWarnedText = text;
-        warn.textContent = found + '이(가) 들어 있는 것 같아요. 학교 이름, 내 이름, 전화번호 같은 개인정보는 쓰지 않아요. "O학년 O반 O모둠 학생들입니다"처럼 소개해 주세요. (개인정보가 아니라면 같은 글을 한 번 더 보내기 해요.)';
+        warn.textContent = found + '이(가) 들어 있는 것 같아요. 학교 이름, 내 이름, 전화번호 같은 개인정보는 쓰지 않아요. "O학년 O반 O모둠 학생들입니다"처럼 소개해 주세요. 그 부분을 지우고 다시 보내 주세요. 선생님이 면담 화면을 볼 수 있어요.';
         warn.hidden = false;
         return;
       }

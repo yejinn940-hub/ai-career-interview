@@ -225,23 +225,49 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       + escapeHtml(room.teacherName || '') + ' 선생님</span><button type="button" id="btn-logout">다른 반으로</button>';
   }
 
-  function loadDashboard(){
+  function loadDashboard(quiet){
     var wrap = document.getElementById('sub-list');
-    wrap.innerHTML = '<p class="empty">불러오는 중...</p>';
+    if(!quiet){ wrap.innerHTML = '<p class="empty">불러오는 중...</p>'; }
     fetch('/api/submissions', {
       method:'POST', headers:{'content-type':'application/json'},
       body: JSON.stringify({ action:'teacher-list', teacherName: state.auth.teacherName, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin })
     }).then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
       .then(function(res){
         if(!res.ok || !(res.data && res.data.ok)){
+          if(quiet) return;
           wrap.innerHTML = '<p class="empty">' + escapeHtml((res.data && res.data.error) || '불러오지 못했어요.') + '</p>';
           return;
         }
         state.items = res.data.items || [];
         renderRoomBadge({ teacherName: state.auth.teacherName, grade: state.auth.grade, classNum: state.auth.classNum, teacherName: res.data.teacherName });
         renderSubList();
-      }).catch(function(){ wrap.innerHTML = '<p class="empty">네트워크 문제로 불러오지 못했어요.</p>'; });
+      }).catch(function(){ if(!quiet){ wrap.innerHTML = '<p class="empty">네트워크 문제로 불러오지 못했어요.</p>'; } });
   }
+
+  // 화면을 열어 두면 20초마다 조용히 새로고침해서 학생 대화를 항상 최신으로 보여 준다.
+  function autoRefresh(){
+    if(document.hidden || !state.auth) return;
+    if(!document.getElementById('view-dashboard').hidden){ loadDashboard(true); return; }
+    if(!document.getElementById('view-detail').hidden && state.detailId){
+      var id = state.detailId;
+      if(document.activeElement && document.activeElement.tagName === 'INPUT') return;
+      fetch('/api/submissions', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({ action:'teacher-get', teacherName: state.auth.teacherName, grade: state.auth.grade, classNum: state.auth.classNum, pin: state.auth.pin, id: id })
+      }).then(function(r){ return r.json(); }).then(function(data){
+        if(!data || !data.ok || state.detailId !== id) return;
+        if(JSON.stringify(data.item.messages) === JSON.stringify((state.detailItem || {}).messages) && JSON.stringify(data.comments || []) === JSON.stringify(state.detailComments || [])) return;
+        var log = document.getElementById('detail-log');
+        var atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
+        var keep = log.scrollTop;
+        state.detailItem = data.item;
+        state.detailComments = data.comments || [];
+        renderDetail(id, data.item, state.detailComments);
+        if(atBottom){ log.scrollTop = log.scrollHeight; } else { log.scrollTop = keep; }
+      }).catch(function(){});
+    }
+  }
+  setInterval(autoRefresh, 20000);
 
   function renderSubList(){
     var wrap = document.getElementById('sub-list');

@@ -45,6 +45,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 .brand-mark{width:40px;height:40px;border-radius:12px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;flex:none}
 .topbar h1{font-family:var(--font-display);font-size:1.2rem;margin:0}
 .tagline{margin:2px 0 0;color:var(--muted);font-size:.8rem}
+.site-foot{padding:10px 20px 18px;text-align:center;font-size:.78rem}
+.site-foot a{color:#667085;text-decoration:underline}
 .view{padding:0 20px 24px;flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
 [hidden]{display:none!important}
 .disclaimer{background:var(--surface-2);color:var(--muted);font-size:.78rem;padding:10px 14px;border-radius:12px;margin:8px 0 16px}
@@ -120,7 +122,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '      <p id="login-error" class="form-error" hidden></p>',
     '      <button type="submit" class="btn-primary">반 만들기 / 들어가기</button>',
     '    </form>',
-    '    <p class="disclaimer small"><a href="/">← 학생 페이지로</a> · <a href="/admin.html">관리자 페이지 →</a> · <a href="/privacy.html" target="_blank" rel="noopener">개인정보 처리방침</a></p>',
+    '    <p class="disclaimer small"><a href="/">← 학생 페이지로</a> · <a href="/admin.html">관리자 페이지 →</a></p>',
     '  </main>',
     '  <main id="view-dashboard" class="view" hidden>',
     '    <div id="room-badge" class="room-badge"></div>',
@@ -167,6 +169,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '    </form>',
     '    <div id="figure-list" class="sub-list" style="margin-top:20px"></div>',
     '  </main>',
+    '  <footer class="site-foot"><a href="/privacy.html" target="_blank" rel="noopener">개인정보 처리방침</a></footer>',
     '</div>'
   ].join('\n');
 

@@ -551,6 +551,11 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     var textarea = formEl.querySelector('.feedback-input');
     var text = textarea.value.trim();
     if(!text) return;
+    var foundInfo = findPersonalInfo(text);
+    if(foundInfo){
+      alert(foundInfo + '이(가) 들어 있는 것 같아요. 친구 이름, 학교 이름, 전화번호 같은 개인정보는 쓰지 않아요. 그 부분을 지우고 다시 써 주세요.');
+      return;
+    }
     fetch('/api/comments', {
       method:'POST', headers:{'content-type':'application/json'},
       body: JSON.stringify({ action:'add', teacherName: state.room.teacherName, grade: state.room.grade, classNum: state.room.classNum, submissionId: state.currentSharedId, messageIndex: Number(index), groupName: state.room.groupName, text: text })

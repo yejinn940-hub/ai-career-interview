@@ -1,5 +1,6 @@
 // 학급에 공유된 면담에 모둠끼리 메시지별로 피드백(메모)을 남기는 기능.
 const store = require('./_store');
+const { maskPersonalInfo } = require('./_mask');
 
 const MAX_COMMENTS_PER_SUBMISSION = 200;
 
@@ -49,7 +50,7 @@ module.exports = async function handler(req, res) {
 
     if (action === 'add') {
       const groupName = store.normalize(body.groupName);
-      const text = String(body.text || '').trim().slice(0, 300);
+      const text = maskPersonalInfo(String(body.text || '').trim().slice(0, 300));
       const messageIndex = Number(body.messageIndex);
       if (!groupName || !text || isNaN(messageIndex)) {
         res.status(400).json({ error: '모둠 이름과 피드백 내용을 입력해주세요.' });

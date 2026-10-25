@@ -601,7 +601,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     fetch('/api/chat', {
       method:'POST',
       headers:{'content-type':'application/json'},
-      body: JSON.stringify({ figureId: state.currentFigureId, messages: state.messages })
+      body: JSON.stringify({ figureId: state.currentFigureId, messages: state.messages, teacherName: state.room ? state.room.teacherName : '', grade: state.room ? state.room.grade : '', classNum: state.room ? state.room.classNum : '' })
     }).then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
       .then(function(res){
         if(!res.ok){

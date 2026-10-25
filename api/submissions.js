@@ -24,6 +24,8 @@ function genId() {
 async function getRoom(teacherName, grade, classNum) {
   const key = store.roomKey(teacherName, grade, classNum);
   const room = (await store.getRoomRecord(key)).room;
+  const blocked = store.roomBlock(room);
+  if (blocked) { const e = new Error(blocked); e.blocked = true; throw e; }
   return { key: key, room: room };
 }
 
@@ -318,6 +320,7 @@ module.exports = async function handler(req, res) {
 
     res.status(400).json({ error: '알 수 없는 요청이에요.' });
   } catch (err) {
+    if (err && err.blocked) { res.status(403).json({ error: err.message, blocked: true }); return; }
     console.error(err);
     res.status(500).json({ error: '서버에서 문제가 생겼어요. 잠시 후 다시 시도해주세요.' });
   }

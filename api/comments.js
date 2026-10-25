@@ -30,7 +30,7 @@ module.exports = async function handler(req, res) {
   const action = body.action;
 
   try {
-    const key = store.roomKey(body.school, body.grade, body.classNum);
+    const key = store.roomKey(body.teacherName, body.grade, body.classNum);
     const room = (await store.getRoomRecord(key)).room;
     if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
 

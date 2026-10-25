@@ -2,7 +2,7 @@ const store = require('./_store');
 const { getFigures, saveFigures, genFigureId } = require('./_figures');
 
 async function checkTeacherAuth(body) {
-  const key = store.roomKey(body.school, body.grade, body.classNum);
+  const key = store.roomKey(body.teacherName, body.grade, body.classNum);
   const room = (await store.getRoomRecord(key)).room;
   return !!(room && String(room.pin) === String(body.pin || ''));
 }

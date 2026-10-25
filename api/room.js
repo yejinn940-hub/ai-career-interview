@@ -34,7 +34,7 @@ module.exports = async function handler(req, res) {
         return;
       }
 
-      const key = store.roomKey('', grade, classNum);
+      const key = store.roomKey(teacherName, grade, classNum);
       const found = await store.getRoomRecord(key);
       const existing = found.room;
       const migrated = found.migrated;
@@ -62,16 +62,17 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === 'student-join') {
+      const teacherName = store.normalize(body.teacherName);
       const grade = store.normalize(body.grade);
       const classNum = store.normalize(body.classNum);
       const groupName = store.normalize(body.groupName);
 
-      if (!grade || !classNum || !groupName) {
-        res.status(400).json({ error: '학년/반/모둠 이름을 모두 입력해주세요.' });
+      if (!teacherName || !grade || !classNum || !groupName) {
+        res.status(400).json({ error: '선생님 성함/학년/반/모둠 이름을 모두 입력해주세요.' });
         return;
       }
 
-      const key = store.roomKey('', grade, classNum);
+      const key = store.roomKey(teacherName, grade, classNum);
       const room = (await store.getRoomRecord(key)).room;
       if (!room) {
         res.status(404).json({ error: '아직 선생님이 이 반을 만들지 않았어요. 선생님께 먼저 "선생님 페이지"에서 반을 만들어달라고 요청해주세요.' });

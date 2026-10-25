@@ -47,13 +47,17 @@ function normalize(s) {
   return String(s || '').trim().replace(/\s+/g, ' ');
 }
 
-// 학교 이름은 서버에 저장하지 않는다. 반은 '학년|반'으로만 구분한다.
-function roomKey(school, grade, classNum) {
-  return normalize(grade) + '|' + normalize(classNum);
+// 학교 이름은 서버에 저장하지 않는다. 반은 '선생님 성함|학년|반'으로 구분한다.
+function teacherKey(name) {
+  return normalize(name).replace(/\s/g, '');
 }
 
-// ---- 일회성 정리: 예전에 '학교|학년|반' 이름으로 저장된 자료를 '학년|반'으로 옮기고, 학교 이름을 지운다 ----
-var MIGRATION_FLAG = 'meta:school-removed-v1';
+function roomKey(teacherName, grade, classNum) {
+  return teacherKey(teacherName) + '|' + normalize(grade) + '|' + normalize(classNum);
+}
+
+// ---- 일회성 정리: 예전 키('학교|학년|반' 또는 '학년|반')로 저장된 자료를 '선생님 성함|학년|반'으로 옮기고 학교 이름을 지운다 ----
+var MIGRATION_FLAG = 'meta:teacher-key-v1';
 var DAY = 24 * 60 * 60;
 
 async function migrateSchoolKeys() {
@@ -61,19 +65,23 @@ async function migrateSchoolKeys() {
   if (await kv.get(MIGRATION_FLAG)) return null;
 
   var summary = { rooms: 0, records: 0, comments: 0 };
-  var roomKeys = await kv.scan('room:*|*|*');
+  var roomKeys = await kv.scan('room:*');
   var groups = {};
-  roomKeys.forEach(function (k) {
-    var parts = k.slice('room:'.length).split('|');
-    if (parts.length !== 3) return;
-    var nk = normalize(parts[1]) + '|' + normalize(parts[2]);
-    (groups[nk] = groups[nk] || []).push(parts.join('|'));
-  });
+  for (var n = 0; n < roomKeys.length; n++) {
+    var oldKey = roomKeys[n].slice('room:'.length);
+    var parts = oldKey.split('|');
+    if (parts.length < 2) continue;
+    var r = await kv.get(roomKeys[n]);
+    if (!r || !r.teacherName) continue;
+    var nk = teacherKey(r.teacherName) + '|' + normalize(parts[parts.length - 2]) + '|' + normalize(parts[parts.length - 1]);
+    if (nk === oldKey) continue; // 이미 새 형식
+    (groups[nk] = groups[nk] || []).push(oldKey);
+  }
 
   var newKeys = Object.keys(groups);
   for (var g = 0; g < newKeys.length; g++) {
-    var nk = newKeys[g];
-    var olds = groups[nk];
+    var key = newKeys[g];
+    var olds = groups[key];
 
     var legacy = [];
     for (var i = 0; i < olds.length; i++) {
@@ -82,34 +90,31 @@ async function migrateSchoolKeys() {
       legacy.push({ old: olds[i], room: room, list: Array.isArray(list) ? list : [] });
     }
 
-    // 가장 최근에 쓴 반 정보를 대표로 삼는다
     var primary = legacy.slice().sort(function (a, b) { return latest(b.list) - latest(a.list); })[0];
-    var existingRoom = await kv.get('room:' + nk);
+    var existingRoom = await kv.get('room:' + key);
     var roomObj = existingRoom || (primary.room ? Object.assign({}, primary.room) : null);
     if (roomObj) {
       delete roomObj.school;
-      await kv.set('room:' + nk, roomObj, 400 * DAY);
+      await kv.set('room:' + key, roomObj, 400 * DAY);
       summary.rooms++;
     }
 
-    // 면담 기록은 모두 합친다 (id 중복 제거)
-    var merged = await kv.get('submissions:' + nk);
+    var merged = await kv.get('submissions:' + key);
     merged = Array.isArray(merged) ? merged.slice() : [];
     var seen = {};
-    merged.forEach(function (r) { seen[r.id] = true; });
+    merged.forEach(function (x) { seen[x.id] = true; });
     legacy.forEach(function (it) {
-      it.list.forEach(function (r) { if (!seen[r.id]) { seen[r.id] = true; merged.push(r); summary.records++; } });
+      it.list.forEach(function (x) { if (!seen[x.id]) { seen[x.id] = true; merged.push(x); summary.records++; } });
     });
-    if (merged.length) await kv.set('submissions:' + nk, merged, 30 * DAY);
+    if (merged.length) await kv.set('submissions:' + key, merged, 30 * DAY);
 
-    // 피드백(댓글)도 새 이름으로 옮긴다
     for (var j = 0; j < legacy.length; j++) {
       var prefix = 'comments:' + legacy[j].old + ':';
       var ckeys = await kv.scan(prefix + '*');
       for (var c = 0; c < ckeys.length; c++) {
         var sid = ckeys[c].slice(prefix.length);
         var val = await kv.get(ckeys[c]);
-        var target = 'comments:' + nk + ':' + sid;
+        var target = 'comments:' + key + ':' + sid;
         if (Array.isArray(val) && val.length && !(await kv.get(target))) {
           await kv.set(target, val, 30 * DAY);
           summary.comments++;

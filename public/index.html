@@ -144,8 +144,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '    </div>',
     '  </header>',
     '  <main id="view-join" class="view">',
-    '    <p class="disclaimer">선생님이 만든 반에 입장할게요. 학년/반 정보는 선생님께 확인해주세요.</p>',
+    '    <p class="disclaimer">선생님이 만든 반에 입장할게요. 선생님 성함과 학년/반 정보는 선생님께 확인해주세요.</p>',
     '    <form id="join-form" class="room-form">',
+    '      <label>선생님 성함<input id="join-teacher" autocomplete="off" placeholder="예: 홍길동" /></label>',
     '      <div class="row">',
     '        <label>학년<select id="join-grade"></select></label>',
     '        <label>반<select id="join-class"></select></label>',
@@ -238,7 +239,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       var raw = localStorage.getItem(ROOM_KEY);
       if(!raw) return null;
       var r = JSON.parse(raw);
-      if(!r || !r.grade || !r.classNum || !r.groupName) return null;
+      if(!r || !r.teacherName || !r.grade || !r.classNum || !r.groupName) return null;
       delete r.school; // 예전에 저장된 학교 이름은 쓰지 않는다
       return r;
     }catch(e){ return null; }
@@ -354,7 +355,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
       headers: {'content-type':'application/json'},
       body: JSON.stringify({
         action: 'sync',
-        grade: state.room.grade, classNum: state.room.classNum,
+        teacherName: state.room.teacherName, grade: state.room.grade, classNum: state.room.classNum,
         groupName: state.room.groupName,
         id: state.conversationId,
         figureId: state.currentFigureId, figureName: state.currentFigureName, figureJob: state.currentFigureJob,
@@ -371,7 +372,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     fetch('/api/submissions', {
       method:'POST',
       headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'submit', grade: state.room.grade, classNum: state.room.classNum, id: state.conversationId })
+      body: JSON.stringify({ action:'submit', teacherName: state.room.teacherName, grade: state.room.grade, classNum: state.room.classNum, id: state.conversationId })
     }).then(function(r){ return r.json(); }).then(function(data){
       btn.disabled = false;
       btn.textContent = (data && data.ok) ? '✅ 제출 완료' : '📨 면담자료제출';
@@ -390,7 +391,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     fetch('/api/submissions', {
       method:'POST',
       headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'unsubmit', grade: state.room.grade, classNum: state.room.classNum, groupName: state.room.groupName, id: id })
+      body: JSON.stringify({ action:'unsubmit', teacherName: state.room.teacherName, grade: state.room.grade, classNum: state.room.classNum, groupName: state.room.groupName, id: id })
     }).then(function(r){ return r.json(); }).then(function(data){
       if(data && data.ok){
         markArchiveStatus(id, 'in_progress');
@@ -479,7 +480,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     if(!state.room) return;
     fetch('/api/comments', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'list', grade: state.room.grade, classNum: state.room.classNum, submissionId: submissionId })
+      body: JSON.stringify({ action:'list', teacherName: state.room.teacherName, grade: state.room.grade, classNum: state.room.classNum, submissionId: submissionId })
     }).then(function(r){ return r.json(); }).then(function(data){
       var map = {};
       ((data && data.items) || []).forEach(function(c){
@@ -511,7 +512,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     var id = state.currentSharedId;
     fetch('/api/submissions', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'live', grade: state.room.grade, classNum: state.room.classNum, id: id })
+      body: JSON.stringify({ action:'live', teacherName: state.room.teacherName, grade: state.room.grade, classNum: state.room.classNum, id: id })
     }).then(function(r){ return r.json(); }).then(function(data){
       if(!data || !data.ok || data.gone || state.currentSharedId !== id) return;
       var map = {};
@@ -545,7 +546,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     if(!text) return;
     fetch('/api/comments', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'add', grade: state.room.grade, classNum: state.room.classNum, submissionId: state.currentSharedId, messageIndex: Number(index), groupName: state.room.groupName, text: text })
+      body: JSON.stringify({ action:'add', teacherName: state.room.teacherName, grade: state.room.grade, classNum: state.room.classNum, submissionId: state.currentSharedId, messageIndex: Number(index), groupName: state.room.groupName, text: text })
     }).then(function(r){ return r.json(); }).then(function(data){
       if(!data || !data.ok){ alert((data && data.error) || '등록하지 못했어요.'); return; }
       loadSharedComments(state.currentSharedId);
@@ -636,7 +637,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     fetch('/api/submissions', {
       method:'POST',
       headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'student-ids', grade: state.room.grade, classNum: state.room.classNum })
+      body: JSON.stringify({ action:'student-ids', teacherName: state.room.teacherName, grade: state.room.grade, classNum: state.room.classNum })
     }).then(function(r){ return r.json(); }).then(function(data){
       if(data && data.ok && Array.isArray(data.ids)){
         var serverIds = data.ids;
@@ -654,7 +655,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
           return fetch('/api/submissions', {
             method:'POST',
             headers:{'content-type':'application/json'},
-            body: JSON.stringify({ action:'student-get', grade: state.room.grade, classNum: state.room.classNum, id: item.id, groupName: item.groupName })
+            body: JSON.stringify({ action:'student-get', teacherName: state.room.teacherName, grade: state.room.grade, classNum: state.room.classNum, id: item.id, groupName: item.groupName })
           }).then(function(r){ return r.json(); }).then(function(d){
             if(d && d.ok && Array.isArray(d.messages)){
               var cur = loadArchive();
@@ -753,7 +754,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     if(!state.room){ wrap.innerHTML = '<p class="empty">반 정보가 없어요.</p>'; return; }
     fetch('/api/submissions', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'shared-list', grade: state.room.grade, classNum: state.room.classNum })
+      body: JSON.stringify({ action:'shared-list', teacherName: state.room.teacherName, grade: state.room.grade, classNum: state.room.classNum })
     }).then(function(r){ return r.json(); }).then(function(data){
       var items = (data && data.items) || [];
       if(!items.length){ wrap.innerHTML = '<p class="empty">아직 선생님이 공유한 면담이 없어요.</p>'; return; }
@@ -812,18 +813,19 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 
   function handleJoinSubmit(e){
     e.preventDefault();
+    var teacherName = document.getElementById('join-teacher').value.trim();
     var grade = document.getElementById('join-grade').value.trim();
     var classNum = document.getElementById('join-class').value.trim();
     var groupSel = document.getElementById('join-group');
     var groupName = groupSel.options[groupSel.selectedIndex] ? groupSel.options[groupSel.selectedIndex].textContent : '';
-    if(!grade || !classNum || !groupName){
+    if(!teacherName || !grade || !classNum || !groupName){
       showJoinError('모든 칸을 입력해주세요.');
       return;
     }
     showJoinError('');
     fetch('/api/room', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ action:'student-join', grade:grade, classNum:classNum, groupName:groupName })
+      body: JSON.stringify({ action:'student-join', teacherName:teacherName, grade:grade, classNum:classNum, groupName:groupName })
     }).then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
       .then(function(res){
         if(!res.ok || !(res.data && res.data.ok)){

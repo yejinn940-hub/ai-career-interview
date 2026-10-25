@@ -41,6 +41,16 @@ async function saveList(key, list) {
   await store.kv.set('submissions:' + key, list, RETENTION_SEC);
 }
 
+// 모둠 번호 오름차순(1모둠, 2모둠, … 10모둠), 같은 모둠이면 최근 수정 순
+function groupNum(x) { var m = String(x.groupName || '').match(/\d+/); return m ? parseInt(m[0], 10) : 9999; }
+function compareByGroup(a, b) {
+  var d = groupNum(a) - groupNum(b);
+  if (d) return d;
+  var n = String(a.groupName || '').localeCompare(String(b.groupName || ''), 'ko');
+  if (n) return n;
+  return new Date(b.updatedAt) - new Date(a.updatedAt);
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
@@ -189,15 +199,7 @@ module.exports = async function handler(req, res) {
       if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
       const list = await getList(key);
       const shared = list.filter(function (x) { return x.shared; })
-        .sort(function (a, b) {
-          // 모둠 번호 오름차순(1모둠, 2모둠, … 10모둠), 같은 모둠이면 최근 수정 순
-          function num(x) { var m = String(x.groupName || '').match(/\d+/); return m ? parseInt(m[0], 10) : 9999; }
-          var d = num(a) - num(b);
-          if (d) return d;
-          var n = String(a.groupName || '').localeCompare(String(b.groupName || ''), 'ko');
-          if (n) return n;
-          return new Date(b.updatedAt) - new Date(a.updatedAt);
-        })
+        .sort(compareByGroup)
         .map(function (x) {
           return { id: x.id, groupName: x.groupName, figureName: x.figureName, figureJob: x.figureJob, messages: x.messages, updatedAt: x.updatedAt };
         });
@@ -216,7 +218,7 @@ module.exports = async function handler(req, res) {
       if (!checkPin(room, body.pin)) { res.status(403).json({ error: 'PIN이 일치하지 않아요.' }); return; }
       const list = await getList(key);
       const meta = list
-        .sort(function (a, b) { return new Date(b.updatedAt) - new Date(a.updatedAt); })
+        .sort(compareByGroup)
         .map(function (x) {
           return {
             id: x.id, groupName: x.groupName, figureName: x.figureName, figureJob: x.figureJob,

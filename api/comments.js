@@ -59,7 +59,7 @@ module.exports = async function handler(req, res) {
       const comment = { id: genId(), messageIndex: messageIndex, groupName: groupName, text: text, createdAt: new Date().toISOString() };
       list.push(comment);
       if (list.length > MAX_COMMENTS_PER_SUBMISSION) list.splice(0, list.length - MAX_COMMENTS_PER_SUBMISSION);
-      await store.kv.set(storeKey, list, 60 * 60 * 24 * 30);
+      await store.kv.set(storeKey, list, 60 * 60 * 24 * 7);
       res.status(200).json({ ok: true, comment: comment });
       return;
     }
@@ -71,7 +71,7 @@ module.exports = async function handler(req, res) {
       const list = (await store.kv.get(storeKey)) || [];
       const next = list.filter(function (c) { return c.id !== commentId; });
       if (next.length === list.length) { res.status(404).json({ error: '피드백을 찾지 못했어요.' }); return; }
-      await store.kv.set(storeKey, next, 60 * 60 * 24 * 30);
+      await store.kv.set(storeKey, next, 60 * 60 * 24 * 7);
       res.status(200).json({ ok: true, items: next });
       return;
     }

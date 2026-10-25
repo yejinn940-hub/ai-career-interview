@@ -74,12 +74,12 @@ module.exports = async function handler(req, res) {
       const DAY = 24 * 60 * 60;
       const moved = { submissions: 0, comments: 0 };
       const list = await store.kv.get('submissions:' + oldKey);
-      if (Array.isArray(list) && list.length) { await store.kv.set('submissions:' + newKey, list, 30 * DAY); moved.submissions = list.length; }
+      if (Array.isArray(list) && list.length) { await store.kv.set('submissions:' + newKey, list, 7 * DAY); moved.submissions = list.length; }
       const prefix = 'comments:' + oldKey + ':';
       const ckeys = await store.kv.scan(prefix + '*');
       for (let i = 0; i < ckeys.length; i++) {
         const val = await store.kv.get(ckeys[i]);
-        if (Array.isArray(val) && val.length) { await store.kv.set('comments:' + newKey + ':' + ckeys[i].slice(prefix.length), val, 30 * DAY); moved.comments++; }
+        if (Array.isArray(val) && val.length) { await store.kv.set('comments:' + newKey + ':' + ckeys[i].slice(prefix.length), val, 7 * DAY); moved.comments++; }
       }
       await store.kv.set('room:' + newKey, Object.assign({}, room, { teacherName: newName }), 400 * DAY);
       for (let i = 0; i < ckeys.length; i++) await store.kv.del(ckeys[i]);

@@ -3,8 +3,8 @@ const store = require('./_store');
 const { maskPersonalInfo } = require('./_mask');
 
 const MAX_RECORDS = 300;
-// 개인정보 보유기간: 마지막 수정으로부터 30일이 지난 면담 기록은 자동으로 삭제됨
-const RETENTION_DAYS = 30;
+// 개인정보 보유기간: 마지막 수정으로부터 7일이 지난 면담 기록은 자동으로 삭제됨
+const RETENTION_DAYS = 7;
 const RETENTION_MS = RETENTION_DAYS * 24 * 60 * 60 * 1000;
 const RETENTION_SEC = RETENTION_DAYS * 24 * 60 * 60;
 
@@ -33,7 +33,16 @@ async function getRoom(teacherName, grade, classNum, req) {
 
 async function getList(key) {
   const list = await store.kv.get('submissions:' + key);
-  return Array.isArray(list) ? list.filter(isFresh) : [];
+  if (!Array.isArray(list)) return [];
+  const fresh = list.filter(isFresh);
+  if (fresh.length < list.length) {
+    // 보관 기간이 지난 면담과 그 댓글은 바로 지운다 (예전 30일 기준으로 저장된 기록 포함)
+    const keep = {};
+    fresh.forEach(function (x) { keep[x.id] = true; });
+    for (const old of list) { if (!keep[old.id]) await store.kv.del('comments:' + key + ':' + old.id); }
+    if (fresh.length) await store.kv.set('submissions:' + key, fresh, RETENTION_SEC); else await store.kv.del('submissions:' + key);
+  }
+  return fresh;
 }
 
 async function saveList(key, list) {

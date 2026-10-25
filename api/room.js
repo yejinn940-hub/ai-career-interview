@@ -26,7 +26,7 @@ module.exports = async function handler(req, res) {
       const pin = String(body.pin || '').trim();
 
       if (!grade || !classNum || !teacherName || !pin) {
-        res.status(400).json({ error: '학년/반/선생님 성함/PIN을 모두 입력해주세요.' });
+        res.status(400).json({ error: '학년/반/우리반 암호/PIN을 모두 입력해주세요.' });
         return;
       }
       if (pin.length < 4) {
@@ -76,7 +76,7 @@ module.exports = async function handler(req, res) {
       const groupName = store.normalize(body.groupName);
 
       if (!teacherName || !grade || !classNum || !groupName) {
-        res.status(400).json({ error: '선생님 성함/학년/반/모둠 이름을 모두 입력해주세요.' });
+        res.status(400).json({ error: '우리반 암호/학년/반/모둠 이름을 모두 입력해주세요.' });
         return;
       }
 

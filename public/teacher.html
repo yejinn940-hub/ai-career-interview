@@ -109,13 +109,13 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     '    </div>',
     '  </header>',
     '  <main id="view-login" class="view">',
-    '    <p class="disclaimer">선생님 성함(실명 대신 닉네임도 돼요), 학년/반 정보와 PIN으로 반을 만들거나 들어가요. 처음 만들 때 입력한 PIN을 꼭 기억해주세요.</p>',
+    '    <p class="disclaimer">우리반 암호, 학년/반 정보와 PIN으로 반을 만들거나 들어가요. 우리반 암호는 학생들이 입장할 때 쓰는 말이에요(실명은 쓰지 마세요). 처음 만들 때 입력한 PIN을 꼭 기억해주세요.</p>',
     '    <form id="login-form" class="room-form">',
     '      <div class="row">',
     '        <label>학년<select id="f-grade"></select></label>',
     '        <label>반<select id="f-class"></select></label>',
     '      </div>',
-    '      <label>선생님 성함 또는 닉네임<input id="f-name" autocomplete="off" placeholder="예: 홍길동 또는 닉네임" /></label>',
+    '      <label>우리반 암호<input id="f-name" autocomplete="off" placeholder="예: 별빛반 (실명 X)" /></label>',
     '      <label>PIN (4자리 이상)<input id="f-pin" type="password" inputmode="numeric" autocomplete="off" placeholder="숫자 4자리 이상" /></label>',
     '      <p id="login-error" class="form-error" hidden></p>',
     '      <button type="submit" class="btn-primary">반 만들기 / 들어가기</button>',
@@ -222,7 +222,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
   function renderRoomBadge(room){
     var el = document.getElementById('room-badge');
     el.innerHTML = '<span>' + escapeHtml(room.grade) + '학년 ' + escapeHtml(room.classNum) + '반 · '
-      + escapeHtml(room.teacherName || '') + ' 선생님</span><button type="button" id="btn-logout">다른 반으로</button>';
+      + '우리반 암호 · ' + escapeHtml(room.teacherName || '') + '</span><button type="button" id="btn-logout">다른 반으로</button>';
   }
 
   function loadDashboard(quiet){

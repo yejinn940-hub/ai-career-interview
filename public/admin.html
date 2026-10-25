@@ -50,6 +50,7 @@ h2{font-size:.95rem;margin:18px 0 4px}
     var btns = it.status === 'pending' ? '<button class="ok" data-k="' + esc(it.key) + '" data-s="approved">승인</button> <button class="no" data-k="' + esc(it.key) + '" data-s="blocked">거절</button>'
       : it.status === 'approved' ? '<button class="no" data-k="' + esc(it.key) + '" data-s="blocked">사용 중지</button>'
       : '<button class="ok" data-k="' + esc(it.key) + '" data-s="approved">다시 승인</button>';
+    btns += ' <button data-k="' + esc(it.key) + '" data-rename="1">암호 바꾸기</button>';
     return '<div class="card"><div><strong>' + '우리반 암호 ' + esc(it.teacherName) + ' · ' + esc(it.grade) + '학년 ' + esc(it.classNum) + '반</strong>'
       + '<span class="tag t-' + it.status + '">' + LABEL[it.status] + '</span><div class="meta">신청 ' + esc((it.createdAt || '').slice(0, 16).replace('T', ' ')) + ' · 저장된 면담 ' + (it.submissions || 0) + '개</div></div><div>' + btns + '</div></div>';
   }
@@ -70,6 +71,14 @@ h2{font-size:.95rem;margin:18px 0 4px}
   document.getElementById('refresh').addEventListener('click', load);
   document.getElementById('list').addEventListener('click', function(e){
     var b = e.target.closest('button[data-k]'); if(!b) return;
+    if(b.getAttribute('data-rename')){
+      var nn = prompt('새 우리반 암호를 입력하세요 (면담 기록은 그대로 옮겨져요)'); if(!nn) return;
+      api({action:'rename', key:b.getAttribute('data-k'), newName:nn}).then(function(res){
+        if(!res.ok){ alert(res.data.error || '바꾸지 못했어요.'); return; }
+        alert('바꿨어요. 선생님과 학생들은 새 암호로 다시 들어와야 해요.'); load();
+      });
+      return;
+    }
     if(b.getAttribute('data-s') === 'blocked' && !confirm('이 반의 사용을 막을까요? 학생들이 더 이상 들어올 수 없어요.')) return;
     api({action:'set-status', key:b.getAttribute('data-k'), status:b.getAttribute('data-s')}).then(function(res){
       if(!res.ok){ alert(res.data.error || '바꾸지 못했어요.'); return; } load();

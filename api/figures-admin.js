@@ -4,7 +4,8 @@ const { getFigures, saveFigures, genFigureId } = require('./_figures');
 async function checkTeacherAuth(body) {
   const key = store.roomKey(body.teacherName, body.grade, body.classNum);
   const room = (await store.getRoomRecord(key)).room;
-  return !!(room && !store.roomBlock(room) && store.verifyPin(room, body.pin));
+  if (!room || store.roomBlock(room)) return false;
+  return await store.verifyTeacher(key, room, body);
 }
 
 module.exports = async function handler(req, res) {
@@ -27,14 +28,14 @@ module.exports = async function handler(req, res) {
 
   try {
     if (action === 'teacher-list') {
-      if (!(await checkTeacherAuth(body))) { res.status(403).json({ error: 'PIN이 일치하지 않아요.' }); return; }
+      if (!(await checkTeacherAuth(body))) { store.sendAuthError(res, body); return; }
       const figures = await getFigures();
       res.status(200).json({ ok: true, items: figures });
       return;
     }
 
     if (action === 'teacher-add') {
-      if (!(await checkTeacherAuth(body))) { res.status(403).json({ error: 'PIN이 일치하지 않아요.' }); return; }
+      if (!(await checkTeacherAuth(body))) { store.sendAuthError(res, body); return; }
       const name = store.normalize(body.name);
       const job = store.normalize(body.job);
       const material = String(body.material || '').trim();
@@ -61,7 +62,7 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === 'teacher-delete') {
-      if (!(await checkTeacherAuth(body))) { res.status(403).json({ error: 'PIN이 일치하지 않아요.' }); return; }
+      if (!(await checkTeacherAuth(body))) { store.sendAuthError(res, body); return; }
       const figures = (await getFigures()).filter(function (f) { return f.id !== body.id; });
       await saveFigures(figures);
       res.status(200).json({ ok: true });

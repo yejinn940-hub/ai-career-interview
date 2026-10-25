@@ -19,7 +19,12 @@ module.exports = async function handler(req, res) {
   let body = req.body;
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
   body = body || {};
+  if (await store.adminLocked(req)) {
+    res.status(429).json({ error: '비밀번호를 너무 많이 틀렸어요. 10분 뒤에 다시 시도해 주세요.' });
+    return;
+  }
   if (!same(body.adminPin || '', process.env.ADMIN_PIN)) {
+    await store.adminFail(req);
     res.status(403).json({ error: '관리자 비밀번호가 일치하지 않아요.' });
     return;
   }

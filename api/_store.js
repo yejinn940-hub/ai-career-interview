@@ -179,4 +179,45 @@ function verifyPin(room, pin) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-module.exports = { hashPin: hashPin, verifyPin: verifyPin, roomBlock: roomBlock, kv: kv, normalize: normalize, roomKey: roomKey, isConfigured: isConfigured, migrateSchoolKeys: migrateSchoolKeys, getRoomRecord: getRoomRecord };
+// ---- 로그인 시도 제한 / 선생님 로그인 토큰 ----
+var PIN_LIMIT = 5, MISS_LIMIT = 100, LOCK_SECONDS = 600, SESSION_SECONDS = 12 * 60 * 60;
+function clientIp(req) {
+  var h = req && req.headers ? String(req.headers['x-forwarded-for'] || '') : '';
+  return (h.split(',')[0].trim()) || (req && req.socket && req.socket.remoteAddress) || 'unknown';
+}
+async function failCount(id) { return Number((await kv.get('fail:' + id)) || 0); }
+async function addFail(id) { await kv.set('fail:' + id, (await failCount(id)) + 1, LOCK_SECONDS); }
+async function issueToken(key) {
+  var t = crypto.randomBytes(24).toString('hex');
+  await kv.set('session:' + t, key, SESSION_SECONDS);
+  return t;
+}
+async function revokeToken(t) { if (t) await kv.del('session:' + String(t)); }
+// 선생님 확인: 로그인 토큰 또는 PIN. PIN은 5번 틀리면 10분 동안 잠김.
+async function verifyTeacher(key, room, body) {
+  if (!room) return false;
+  if (body.token) {
+    var k = await kv.get('session:' + String(body.token));
+    if (k === key) return true;
+    body._expired = true;
+    return false;
+  }
+  if (!body.pin) return false;
+  var id = 'pin:' + key;
+  if ((await failCount(id)) >= PIN_LIMIT) { body._locked = true; return false; }
+  if (verifyPin(room, body.pin)) { await kv.del('fail:' + id); return true; }
+  await addFail(id);
+  return false;
+}
+function sendAuthError(res, body) {
+  if (body._locked) { res.status(429).json({ error: '비밀번호를 너무 많이 틀렸어요. 10분 뒤에 다시 시도해 주세요.', locked: true }); return; }
+  if (body._expired) { res.status(401).json({ error: '로그인이 만료되었어요. 다시 로그인해 주세요.', expired: true }); return; }
+  res.status(403).json({ error: 'PIN이 일치하지 않아요.' });
+}
+// 없는 반을 계속 시도하는 접속(암호 알아내기)은 같은 IP에서 10분에 100번까지만 허용(학교는 한 IP를 같이 쓰는 경우가 많아 넉넉하게)
+async function roomMissLocked(req) { return (await failCount('miss:' + clientIp(req))) >= MISS_LIMIT; }
+async function roomMiss(req) { await addFail('miss:' + clientIp(req)); }
+async function adminLocked(req) { return (await failCount('admin:' + clientIp(req))) >= PIN_LIMIT; }
+async function adminFail(req) { await addFail('admin:' + clientIp(req)); }
+
+module.exports = { verifyTeacher: verifyTeacher, sendAuthError: sendAuthError, issueToken: issueToken, revokeToken: revokeToken, roomMissLocked: roomMissLocked, roomMiss: roomMiss, adminLocked: adminLocked, adminFail: adminFail, hashPin: hashPin, verifyPin: verifyPin, roomBlock: roomBlock, kv: kv, normalize: normalize, roomKey: roomKey, isConfigured: isConfigured, migrateSchoolKeys: migrateSchoolKeys, getRoomRecord: getRoomRecord };

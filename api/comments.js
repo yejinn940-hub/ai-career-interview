@@ -31,8 +31,9 @@ module.exports = async function handler(req, res) {
 
   try {
     const key = store.roomKey(body.teacherName, body.grade, body.classNum);
+    if (await store.roomMissLocked(req)) { res.status(429).json({ error: '잠시 후 다시 시도해 주세요.' }); return; }
     const room = (await store.getRoomRecord(key)).room;
-    if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
+    if (!room) { await store.roomMiss(req); res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
     const blocked = store.roomBlock(room);
     if (blocked) { res.status(403).json({ error: blocked, blocked: true }); return; }
 
@@ -65,7 +66,7 @@ module.exports = async function handler(req, res) {
 
     // 선생님 전용: 다른 학생이 남긴 피드백(댓글) 삭제 (PIN 필요)
     if (action === 'teacher-delete') {
-      if (!store.verifyPin(room, body.pin)) { res.status(403).json({ error: 'PIN이 일치하지 않아요.' }); return; }
+      if (!(await store.verifyTeacher(key, room, body))) { store.sendAuthError(res, body); return; }
       const commentId = String(body.commentId || '');
       const list = (await store.kv.get(storeKey)) || [];
       const next = list.filter(function (c) { return c.id !== commentId; });

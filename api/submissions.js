@@ -21,9 +21,10 @@ function genId() {
   return 's' + Date.now() + Math.random().toString(36).slice(2, 8);
 }
 
-async function getRoom(teacherName, grade, classNum) {
+async function getRoom(teacherName, grade, classNum, req) {
   const key = store.roomKey(teacherName, grade, classNum);
   const room = (await store.getRoomRecord(key)).room;
+  if (!room && req) await store.roomMiss(req);
   const blocked = store.roomBlock(room);
   if (blocked) { const e = new Error(blocked); e.blocked = true; throw e; }
   return { key: key, room: room };
@@ -72,9 +73,10 @@ module.exports = async function handler(req, res) {
   const action = body.action;
 
   try {
+    if (await store.roomMissLocked(req)) { res.status(429).json({ error: '잠시 후 다시 시도해 주세요.' }); return; }
     // ---- 학생 쪽: 자동 동기화 (진행 중 대화 포함 전체 기록) ----
     if (action === 'sync') {
-      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum);
+      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum, req);
       if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
 
       const groupName = store.normalize(body.groupName) || '이름없음';
@@ -124,7 +126,7 @@ module.exports = async function handler(req, res) {
 
     // ---- 학생 쪽: "제출" 표시만 (데이터는 이미 자동 저장되어 있음) ----
     if (action === 'submit') {
-      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum);
+      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum, req);
       if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
 
       const list = await getList(key);
@@ -139,7 +141,7 @@ module.exports = async function handler(req, res) {
 
     // ---- 학생 쪽: 제출 취소 (자기 모둠 것만 가능) ----
     if (action === 'unsubmit') {
-      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum);
+      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum, req);
       if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
 
       const list = await getList(key);
@@ -175,7 +177,7 @@ module.exports = async function handler(req, res) {
     // ---- 공개: 학생이 기기 내 보관함을 정리할 때 쓰는, 서버에 남아있는 id 목록 ----
     // (선생님이 삭제한 기록을 학생 화면에서도 영구 삭제하기 위해 사용)
     if (action === 'student-ids') {
-      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum);
+      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum, req);
       if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
       const list = await getList(key);
       const revs = {};
@@ -186,7 +188,7 @@ module.exports = async function handler(req, res) {
 
     // ---- 학생 쪽: 선생님이 줄을 지운 기록의 최신 내용을 받아 기기 내 기록도 함께 정리 (자기 모둠 것만) ----
     if (action === 'student-get') {
-      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum);
+      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum, req);
       if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
       const list = await getList(key);
       const rec = list.filter(function (x) { return x.id === body.id; })[0];
@@ -197,7 +199,7 @@ module.exports = async function handler(req, res) {
 
     // ---- 공개: 학급에 공유된 면담 목록 (코드 불필요, 반 정보만 필요) ----
     if (action === 'shared-list') {
-      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum);
+      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum, req);
       if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
       const list = await getList(key);
       const shared = list.filter(function (x) { return x.shared; })
@@ -210,14 +212,14 @@ module.exports = async function handler(req, res) {
     }
 
     // ---- 아래부터는 선생님 전용 (PIN 필요) ----
-    function checkPin(room, pin) {
-      return room && store.verifyPin(room, pin);
+    async function checkPin(room, key, b) {
+      return !!room && (await store.verifyTeacher(key, room, b));
     }
 
     if (action === 'teacher-list') {
-      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum);
+      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum, req);
       if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
-      if (!checkPin(room, body.pin)) { res.status(403).json({ error: 'PIN이 일치하지 않아요.' }); return; }
+      if (!(await checkPin(room, key, body))) { store.sendAuthError(res, body); return; }
       const list = await getList(key);
       const meta = list
         .sort(compareByGroup)
@@ -233,9 +235,9 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === 'teacher-get') {
-      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum);
+      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum, req);
       if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
-      if (!checkPin(room, body.pin)) { res.status(403).json({ error: 'PIN이 일치하지 않아요.' }); return; }
+      if (!(await checkPin(room, key, body))) { store.sendAuthError(res, body); return; }
       const list = await getList(key);
       const rec = list.filter(function (x) { return x.id === body.id; })[0];
       if (!rec) { res.status(404).json({ error: '대화를 찾지 못했어요.' }); return; }
@@ -246,9 +248,9 @@ module.exports = async function handler(req, res) {
 
     // 선생님이 대화 기록에서 원하는 줄만 골라 삭제 (이름 등 개인정보가 들어간 줄 정리용)
     if (action === 'teacher-delete-messages') {
-      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum);
+      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum, req);
       if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
-      if (!checkPin(room, body.pin)) { res.status(403).json({ error: 'PIN이 일치하지 않아요.' }); return; }
+      if (!(await checkPin(room, key, body))) { store.sendAuthError(res, body); return; }
       const list = await getList(key);
       const rec = list.filter(function (x) { return x.id === body.id; })[0];
       if (!rec) { res.status(404).json({ error: '대화를 찾지 못했어요.' }); return; }
@@ -282,9 +284,9 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === 'teacher-rename') {
-      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum);
+      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum, req);
       if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
-      if (!checkPin(room, body.pin)) { res.status(403).json({ error: 'PIN이 일치하지 않아요.' }); return; }
+      if (!(await checkPin(room, key, body))) { store.sendAuthError(res, body); return; }
       const list = await getList(key);
       const rec = list.filter(function (x) { return x.id === body.id; })[0];
       if (!rec) { res.status(404).json({ error: '대화를 찾지 못했어요.' }); return; }
@@ -295,9 +297,9 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === 'teacher-delete') {
-      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum);
+      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum, req);
       if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
-      if (!checkPin(room, body.pin)) { res.status(403).json({ error: 'PIN이 일치하지 않아요.' }); return; }
+      if (!(await checkPin(room, key, body))) { store.sendAuthError(res, body); return; }
       const list = (await getList(key)).filter(function (x) { return x.id !== body.id; });
       await saveList(key, list);
       await store.kv.del('comments:' + key + ':' + String(body.id || ''));
@@ -306,9 +308,9 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === 'teacher-share') {
-      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum);
+      const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum, req);
       if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
-      if (!checkPin(room, body.pin)) { res.status(403).json({ error: 'PIN이 일치하지 않아요.' }); return; }
+      if (!(await checkPin(room, key, body))) { store.sendAuthError(res, body); return; }
       const list = await getList(key);
       const rec = list.filter(function (x) { return x.id === body.id; })[0];
       if (!rec) { res.status(404).json({ error: '대화를 찾지 못했어요.' }); return; }

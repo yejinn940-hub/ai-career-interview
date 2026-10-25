@@ -40,15 +40,21 @@ module.exports = async function handler(req, res) {
       const migrated = found.migrated;
 
       if (!existing) {
+        if (teacherName.replace(/\s/g, '').length < 4) {
+          res.status(400).json({ error: '우리반 암호는 4자 이상으로 정해 주세요. 다른 사람이 짐작하기 어려운 말이 좋아요. (예: 별빛구름7)' });
+          return;
+        }
         // 새 반은 '승인 대기'로 만들어지고, 관리자가 승인해야 학생이 들어오고 면담을 쓸 수 있다.
         const autoOk = process.env.AUTO_APPROVE === '1';
         const room = { grade: grade, classNum: classNum, teacherName: teacherName, pin: store.hashPin(pin), status: autoOk ? 'approved' : 'pending', createdAt: new Date().toISOString() };
         await store.kv.set('room:' + key, room, 60 * 60 * 24 * 400);
-        res.status(200).json({ ok: true, created: true, status: autoOk ? 'approved' : 'pending', message: autoOk ? '' : '반을 만들었어요. 관리자가 승인하면 사용할 수 있어요.', room: { grade: grade, classNum: classNum, teacherName: teacherName }, migrated: migrated });
+        res.status(200).json({ ok: true, created: true, token: await store.issueToken(key), status: autoOk ? 'approved' : 'pending', message: autoOk ? '' : '반을 만들었어요. 관리자가 승인하면 사용할 수 있어요.', room: { grade: grade, classNum: classNum, teacherName: teacherName }, migrated: migrated });
         return;
       }
 
-      if (!store.verifyPin(existing, pin)) {
+      const loginBody = { pin: pin };
+      if (!(await store.verifyTeacher(key, existing, loginBody))) {
+        if (loginBody._locked) { store.sendAuthError(res, loginBody); return; }
         res.status(403).json({ error: 'PIN이 일치하지 않아요. 처음 반을 만들 때 설정한 PIN을 입력해주세요.' });
         return;
       }
@@ -65,7 +71,13 @@ module.exports = async function handler(req, res) {
         await store.kv.set('room:' + key, existing, 60 * 60 * 24 * 400);
       }
 
-      res.status(200).json({ ok: true, created: false, status: existing.status || 'approved', message: store.roomBlock(existing), room: { grade: grade, classNum: classNum, teacherName: existing.teacherName }, migrated: migrated });
+      res.status(200).json({ ok: true, created: false, token: await store.issueToken(key), status: existing.status || 'approved', message: store.roomBlock(existing), room: { grade: grade, classNum: classNum, teacherName: existing.teacherName }, migrated: migrated });
+      return;
+    }
+
+    if (action === 'teacher-logout') {
+      await store.revokeToken(body.token);
+      res.status(200).json({ ok: true });
       return;
     }
 
@@ -81,8 +93,10 @@ module.exports = async function handler(req, res) {
       }
 
       const key = store.roomKey(teacherName, grade, classNum);
+      if (await store.roomMissLocked(req)) { res.status(429).json({ error: '너무 많이 시도했어요. 잠시 후 다시 해 주세요.' }); return; }
       const room = (await store.getRoomRecord(key)).room;
       if (!room) {
+        await store.roomMiss(req);
         res.status(404).json({ error: '아직 선생님이 이 반을 만들지 않았어요. 선생님께 먼저 "선생님 페이지"에서 반을 만들어달라고 요청해주세요.' });
         return;
       }

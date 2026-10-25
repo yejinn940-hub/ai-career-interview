@@ -32,7 +32,7 @@ function overlap(a, b) {
 }
 
 function cleanSource(line) {
-  return line.replace(/\[출처:\s*([^\]]*)\]/g, '(출처: $1)').replace(/^- /, '').trim();
+  return line.replace(/[^.。]*(?:근거로 답한다|답한다|지어내지)[^.。]*[.。]?\s*/g, '').replace(/\[출처:\s*([^\]]*)\]/g, '(출처: $1)').replace(/^- /, '').trim();
 }
 
 // material을 (1) 예상 질문-답 묶음, (2) 출처별 문단으로 나눈다.

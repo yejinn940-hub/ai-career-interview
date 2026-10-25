@@ -40,6 +40,11 @@ module.exports = async function handler(req, res) {
       const migrated = found.migrated;
 
       if (!existing) {
+        // 새 반 만들기는 운영자가 허용했을 때만 가능 (환경변수 ALLOW_NEW_ROOMS=1). 기본은 막혀 있음.
+        if (process.env.ALLOW_NEW_ROOMS !== '1') {
+          res.status(403).json({ error: '지금은 새 반을 만들 수 없어요. 이 앱은 현재 제한된 선생님만 사용할 수 있어요.' });
+          return;
+        }
         const room = { grade: grade, classNum: classNum, teacherName: teacherName, pin: pin, createdAt: new Date().toISOString() };
         await store.kv.set('room:' + key, room, 60 * 60 * 24 * 400);
         res.status(200).json({ ok: true, created: true, room: { grade: grade, classNum: classNum, teacherName: teacherName }, migrated: migrated });

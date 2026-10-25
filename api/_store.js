@@ -149,12 +149,4 @@ function isConfigured() {
   return !!client;
 }
 
-// 반 사용 승인 상태: status가 없으면(예전에 만든 반) 승인된 것으로 본다.
-function roomBlock(room) {
-  if (!room || !room.status || room.status === 'approved') return '';
-  return room.status === 'pending'
-    ? '선생님의 반이 아직 승인되지 않았어요. 승인될 때까지 기다려 주세요.'
-    : '이 반은 사용이 중지되었어요.';
-}
-
-module.exports = { roomBlock: roomBlock, kv: kv, normalize: normalize, roomKey: roomKey, isConfigured: isConfigured, migrateSchoolKeys: migrateSchoolKeys, getRoomRecord: getRoomRecord };
+module.exports = { kv: kv, normalize: normalize, roomKey: roomKey, isConfigured: isConfigured, migrateSchoolKeys: migrateSchoolKeys, getRoomRecord: getRoomRecord };

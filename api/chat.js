@@ -1,5 +1,4 @@
 const { getFigures } = require('./_figures');
-const store = require('./_store');
 const { maskPersonalInfo } = require('./_mask');
 const { answer: scriptedAnswer } = require('./_scripted');
 
@@ -48,17 +47,6 @@ module.exports = async function handler(req, res) {
     try { body = JSON.parse(body); } catch (e) { body = {}; }
   }
   const { figureId, messages } = body || {};
-  // 승인된 반의 학생만 면담(AI 호출)을 쓸 수 있다.
-  if (store.isConfigured()) {
-    const rb = body || {};
-    let chatRoom = null;
-    if (rb.teacherName && rb.grade && rb.classNum) {
-      chatRoom = (await store.getRoomRecord(store.roomKey(rb.teacherName, rb.grade, rb.classNum))).room;
-    }
-    if (!chatRoom) { res.status(403).json({ error: '반 정보를 확인할 수 없어요. 처음 화면에서 반 정보를 다시 입력해 주세요.' }); return; }
-    const chatBlocked = store.roomBlock(chatRoom);
-    if (chatBlocked) { res.status(403).json({ error: chatBlocked, blocked: true }); return; }
-  }
 
   if (!figureId || !Array.isArray(messages) || messages.length === 0) {
     res.status(400).json({ error: '요청이 올바르지 않아요.' });

@@ -593,10 +593,6 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
           showLoginError((res.data && res.data.error) || '입장에 실패했어요.');
           return;
         }
-        if(res.data.status === 'pending' || res.data.status === 'blocked'){
-          showLoginError(res.data.message || '아직 승인되지 않았어요.');
-          return;
-        }
         var auth = { teacherName:teacherName, grade:grade, classNum:classNum, pin:pin };
         if(res.data.migrated){ alert('저장된 면담 기록에서 학교 이름을 정리했어요. (반 ' + res.data.migrated.rooms + '개, 면담 ' + res.data.migrated.records + '개, 피드백 ' + res.data.migrated.comments + '개 정리)'); }
         state.auth = auth;

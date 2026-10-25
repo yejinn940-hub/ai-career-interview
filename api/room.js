@@ -40,9 +40,9 @@ module.exports = async function handler(req, res) {
       const migrated = found.migrated;
 
       if (!existing) {
-        const room = { grade: grade, classNum: classNum, teacherName: teacherName, pin: pin, status: process.env.AUTO_APPROVE === '1' ? 'approved' : 'pending', createdAt: new Date().toISOString() };
+        const room = { grade: grade, classNum: classNum, teacherName: teacherName, pin: pin, createdAt: new Date().toISOString() };
         await store.kv.set('room:' + key, room, 60 * 60 * 24 * 400);
-        res.status(200).json({ ok: true, created: true, status: process.env.AUTO_APPROVE === '1' ? 'approved' : 'pending', message: process.env.AUTO_APPROVE === '1' ? '' : '반을 만들었어요. 관리자가 승인하면 사용할 수 있어요.', room: { grade: grade, classNum: classNum, teacherName: teacherName }, migrated: migrated });
+        res.status(200).json({ ok: true, created: true, room: { grade: grade, classNum: classNum, teacherName: teacherName }, migrated: migrated });
         return;
       }
 
@@ -57,7 +57,7 @@ module.exports = async function handler(req, res) {
         await store.kv.set('room:' + key, existing, 60 * 60 * 24 * 400);
       }
 
-      res.status(200).json({ ok: true, created: false, status: existing.status || 'approved', message: store.roomBlock(existing), room: { grade: grade, classNum: classNum, teacherName: existing.teacherName }, migrated: migrated });
+      res.status(200).json({ ok: true, created: false, room: { grade: grade, classNum: classNum, teacherName: existing.teacherName }, migrated: migrated });
       return;
     }
 
@@ -79,8 +79,6 @@ module.exports = async function handler(req, res) {
         return;
       }
 
-      const blocked = store.roomBlock(room);
-      if (blocked) { res.status(403).json({ error: blocked, blocked: true }); return; }
       res.status(200).json({ ok: true, room: { grade: grade, classNum: classNum, teacherName: room.teacherName } });
       return;
     }

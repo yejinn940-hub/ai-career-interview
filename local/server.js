@@ -52,7 +52,6 @@ Module._load = function (request, parent, isMain) {
   if (request === '@upstash/redis') return { Redis: FakeRedis };
   return origLoad.apply(this, arguments);
 };
-process.env.AUTO_APPROVE = process.env.AUTO_APPROVE || '1'; // 선생님 본인이 쓰는 서버라서 반을 자동 승인
 process.env.KV_REST_API_URL = process.env.KV_REST_API_URL || 'local';
 process.env.KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN || 'local';
 // API 키가 없으면 AI를 부르지 않고 자료에서 답을 찾아 보여 준다(무료·해외 전송 없음).

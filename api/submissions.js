@@ -127,7 +127,7 @@ module.exports = async function handler(req, res) {
           messages: messages,
           flagged: flagged,
           status: 'in_progress',
-          shared: true,
+          shared: false, // 선생님이 '학급에 공유하기'를 눌러야 같은 반 친구들에게 보임
           startedAt: now,
           updatedAt: now,
           submittedAt: null
@@ -184,7 +184,7 @@ module.exports = async function handler(req, res) {
       if (!id) { res.status(400).json({ error: '면담 정보를 찾을 수 없어요.' }); return; }
       const got = await store.kv.mget(['submissions:' + key, 'comments:' + key + ':' + id]);
       const list = Array.isArray(got[0]) ? got[0] : [];
-      const rec = list.filter(function (x) { return x.id === id && x.shared; })[0];
+      const rec = list.filter(function (x) { return x.id === id && x.shared && !x.flagged; })[0];
       if (!rec) { res.status(200).json({ ok: true, gone: true }); return; }
       res.status(200).json({ ok: true, messages: rec.messages || [], updatedAt: rec.updatedAt, comments: Array.isArray(got[1]) ? got[1] : [] });
       return;
@@ -218,7 +218,7 @@ module.exports = async function handler(req, res) {
       const { room, key } = await getRoom(body.teacherName, body.grade, body.classNum, req);
       if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
       const list = await getList(key);
-      const shared = list.filter(function (x) { return x.shared; })
+      const shared = list.filter(function (x) { return x.shared && !x.flagged; })
         .sort(compareByGroup)
         .map(function (x) {
           return { id: x.id, groupName: x.groupName, figureName: x.figureName, figureJob: x.figureJob, messages: x.messages, updatedAt: x.updatedAt };

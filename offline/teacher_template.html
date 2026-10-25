@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI가상면담 - 선생님 페이지(서버 없는 버전)</title>
+<style>
+__CSS__
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px}
+.btn-primary{background:var(--accent);color:#fff;border:none;border-radius:999px;padding:9px 16px;font-size:.85rem;cursor:pointer;font-weight:700}
+.btn-green{background:#2FA84F}
+.btn-line{background:none;border:1px solid var(--ai-bubble-border);color:var(--muted);border-radius:999px;padding:8px 14px;font-size:.8rem;cursor:pointer}
+.msg-del,.cmt-del{background:none;border:none;color:#B3432B;font-size:.74rem;cursor:pointer;text-decoration:underline;padding:2px 4px}
+.cmt-add{display:flex;gap:6px;max-width:78%;margin-top:2px}
+.cmt-add input{flex:1;min-width:0;font:inherit;border:1px solid var(--ai-bubble-border);border-radius:10px;padding:6px 10px;background:var(--surface);color:var(--ink)}
+.cmt-add button{background:var(--accent);color:#fff;border:none;border-radius:999px;padding:0 14px;font-size:.78rem;cursor:pointer}
+.share-check{display:flex;align-items:center;gap:6px;font-size:.8rem}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="topbar"><div class="brand"><span class="brand-mark">T</span><div><h1>선생님 페이지</h1><p class="tagline">서버 없는 버전 · 이 기기(브라우저)에만 저장돼요</p></div></div></header>
+  <main id="view-list" class="view">
+    <p class="disclaimer small">모둠이 보낸 "제출 파일(.json)"을 불러오면 모둠 번호순으로 보여요. 줄 삭제·댓글을 달고, 공유할 면담을 골라 "학급 공유 파일"을 만들어 학생에게 나눠 주세요.</p>
+    <p class="disclaimer small">AI는 공개된 인터뷰 자료에 실제로 나온 발언만 활용하며, 발언을 짜깁기하거나 인물의 생각·의도를 해석하지 않고 옳고 그름을 판단하지 않습니다.</p>
+    <div class="toolbar">
+      <button type="button" id="btn-import" class="btn-primary btn-green">📂 제출 파일 불러오기</button>
+      <button type="button" id="btn-export" class="btn-primary">📤 학급 공유 파일 만들기</button>
+      <button type="button" id="btn-clear" class="btn-line">🗑 이 기기의 기록 전체 지우기</button>
+    </div>
+    <input type="file" id="file-import" accept=".json,application/json" multiple hidden>
+    <div id="sub-list" class="archive-list"></div>
+  </main>
+  <main id="view-detail" class="view" hidden>
+    <button class="btn-back" type="button" id="btn-detail-back">← 목록으로</button>
+    <h2 id="detail-title" style="font-family:var(--font-display);font-size:1.05rem;margin:4px 0 10px"></h2>
+    <p class="disclaimer small">이름 같은 개인정보가 들어간 줄은 "이 줄 삭제"로 지울 수 있어요.</p>
+    <div id="detail-log" class="chat-log"></div>
+  </main>
+</div>
+<script>
+(function(){
+  'use strict';
+  var KEY = 'offline-teacher-v1';
+  var state = { subs: {}, openId: null };
+
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+  function load(){ try{ var v = JSON.parse(localStorage.getItem(KEY)); state.subs = (v && v.subs) || {}; }catch(e){ state.subs = {}; } }
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify({subs: state.subs})); }catch(e){ alert('저장 공간이 부족해요.'); } }
+  function gnum(r){ var m = String(r.groupName || '').match(/\d+/); return m ? parseInt(m[0], 10) : 9999; }
+  function sorted(){
+    return Object.keys(state.subs).map(function(k){ return state.subs[k]; }).sort(function(a, b){
+      var d = gnum(a) - gnum(b); if(d) return d;
+      var n = String(a.groupName || '').localeCompare(String(b.groupName || ''), 'ko'); if(n) return n;
+      return new Date(b.submittedAt) - new Date(a.submittedAt);
+    });
+  }
+  function fmt(iso){ try{ var d = new Date(iso); return (d.getMonth()+1) + '/' + d.getDate() + ' ' + ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2); }catch(e){ return ''; } }
+  function show(name){ document.getElementById('view-list').hidden = name !== 'list'; document.getElementById('view-detail').hidden = name !== 'detail'; }
+
+  function renderList(){
+    var wrap = document.getElementById('sub-list');
+    var list = sorted();
+    if(!list.length){ wrap.innerHTML = '<p class="empty">아직 불러온 제출 파일이 없어요. "제출 파일 불러오기"를 눌러 모둠이 보낸 .json 파일을 골라 주세요.</p>'; return; }
+    wrap.innerHTML = list.map(function(r){
+      return '<div class="archive-item"><div class="archive-item-top"><strong>' + esc(r.groupName || '') + ' · ' + esc(r.figureName || '') + '</strong>'
+        + '<span class="archive-item-meta">' + esc(fmt(r.submittedAt)) + ' · ' + (r.messages || []).length + '줄</span></div>'
+        + '<label class="share-check"><input type="checkbox" class="chk-share" data-id="' + esc(r.id) + '"' + (r.shared ? ' checked' : '') + '> 학급에 공유</label>'
+        + '<div class="archive-item-actions"><button type="button" class="btn-open" data-id="' + esc(r.id) + '">열기</button>'
+        + '<button type="button" class="danger btn-del" data-id="' + esc(r.id) + '">삭제</button></div></div>';
+    }).join('');
+  }
+
+  function renderDetail(){
+    var r = state.subs[state.openId]; if(!r){ show('list'); renderList(); return; }
+    document.getElementById('detail-title').textContent = (r.groupName || '') + ' · ' + (r.figureName || '');
+    var cm = r.comments || [];
+    document.getElementById('detail-log').innerHTML = (r.messages || []).map(function(m, i){
+      var mine = m.role === 'user';
+      var notes = cm.map(function(c, ci){ return {c: c, ci: ci}; }).filter(function(x){ return x.c.messageIndex === i; }).map(function(x){
+        return '<div class="feedback-note" style="background:#FFF3D6;color:#5C3C10;border:1px solid #F0D9A0"><strong>선생님</strong>' + esc(x.c.text)
+          + ' <button type="button" class="cmt-del" data-ci="' + x.ci + '">삭제</button></div>';
+      }).join('');
+      return '<div class="bubble-wrap ' + (mine ? 'bubble-wrap-user' : 'bubble-wrap-ai') + '">'
+        + '<div class="bubble ' + (mine ? 'bubble-user' : 'bubble-ai') + '">' + esc(m.content) + '</div>'
+        + '<button type="button" class="msg-del" data-i="' + i + '">🗑 이 줄 삭제</button>'
+        + (notes ? '<div class="feedback-notes">' + notes + '</div>' : '')
+        + '<div class="cmt-add"><input type="text" placeholder="선생님 댓글" data-i="' + i + '"><button type="button" class="cmt-add-btn" data-i="' + i + '">등록</button></div></div>';
+    }).join('');
+  }
+
+  function importFiles(files){
+    var n = 0, bad = 0, left = files.length;
+    Array.prototype.forEach.call(files, function(f){
+      var rd = new FileReader();
+      rd.onload = function(){
+        try{
+          var d = JSON.parse(rd.result);
+          if(!d || d.type !== 'interview-submission' || !d.id || !Array.isArray(d.messages)) throw new Error('bad');
+          var old = state.subs[d.id];
+          state.subs[d.id] = { id: d.id, groupName: d.groupName, grade: d.grade, classNum: d.classNum, figureId: d.figureId,
+            figureName: d.figureName, figureJob: d.figureJob, messages: d.messages, submittedAt: d.submittedAt,
+            shared: old ? old.shared : false, comments: old ? old.comments : [] };
+          n++;
+        }catch(e){ bad++; }
+        if(--left === 0){ save(); renderList(); alert(n + '개 불러왔어요.' + (bad ? ' (' + bad + '개는 제출 파일이 아니라서 건너뛰었어요)' : '')); }
+      };
+      rd.readAsText(f);
+    });
+  }
+
+  function exportShare(){
+    var items = sorted().filter(function(r){ return r.shared; }).map(function(r){
+      return { id: r.id, groupName: r.groupName, figureId: r.figureId, figureName: r.figureName, figureJob: r.figureJob,
+        messages: r.messages, updatedAt: r.submittedAt, comments: (r.comments || []).map(function(c){ return { messageIndex: c.messageIndex, groupName: '선생님', text: c.text, createdAt: c.createdAt }; }) };
+    });
+    if(!items.length){ alert('먼저 학급에 공유할 면담에 체크해 주세요.'); return; }
+    var blob = new Blob([JSON.stringify({ type: 'class-share', version: 1, createdAt: new Date().toISOString(), items: items }, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    var d = new Date(); function z(n){ return ('0'+n).slice(-2); }
+    a.download = 'class-share_' + z(d.getMonth()+1) + z(d.getDate()) + '-' + z(d.getHours()) + z(d.getMinutes()) + '.json';
+    document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    alert('학급 공유 파일이 저장됐어요.\n이 파일을 학생들에게 나눠 주세요. (면담 ' + items.length + '개)');
+  }
+
+  document.addEventListener('click', function(e){
+    var t = e.target.closest('button'); if(!t) return;
+    if(t.id === 'btn-import'){ document.getElementById('file-import').click(); return; }
+    if(t.id === 'btn-export'){ exportShare(); return; }
+    if(t.id === 'btn-clear'){ if(confirm('이 기기에 불러온 기록을 모두 지울까요?')){ state.subs = {}; save(); renderList(); } return; }
+    if(t.id === 'btn-detail-back'){ show('list'); renderList(); return; }
+    if(t.classList.contains('btn-open')){ state.openId = t.getAttribute('data-id'); show('detail'); renderDetail(); return; }
+    if(t.classList.contains('btn-del')){ if(confirm('이 면담 기록을 지울까요?')){ delete state.subs[t.getAttribute('data-id')]; save(); renderList(); } return; }
+    var r = state.subs[state.openId];
+    if(!r) return;
+    if(t.classList.contains('msg-del')){
+      var i = Number(t.getAttribute('data-i'));
+      if(!confirm('이 줄을 지울까요?')) return;
+      r.messages.splice(i, 1);
+      r.comments = (r.comments || []).filter(function(c){ return c.messageIndex !== i; }).map(function(c){ if(c.messageIndex > i){ c.messageIndex -= 1; } return c; });
+      save(); renderDetail(); return;
+    }
+    if(t.classList.contains('cmt-del')){ r.comments.splice(Number(t.getAttribute('data-ci')), 1); save(); renderDetail(); return; }
+    if(t.classList.contains('cmt-add-btn')){
+      var idx = Number(t.getAttribute('data-i'));
+      var input = document.querySelector('.cmt-add input[data-i="' + idx + '"]');
+      var text = input && input.value.trim(); if(!text) return;
+      (r.comments = r.comments || []).push({ messageIndex: idx, text: text, createdAt: new Date().toISOString() });
+      save(); renderDetail();
+    }
+  });
+  document.addEventListener('change', function(e){
+    var t = e.target;
+    if(t.id === 'file-import' && t.files && t.files.length){ importFiles(t.files); t.value = ''; return; }
+    if(t.classList && t.classList.contains('chk-share')){ var r = state.subs[t.getAttribute('data-id')]; if(r){ r.shared = t.checked; save(); } }
+  });
+
+  load(); show('list'); renderList();
+})();
+</script>
+</body>
+</html>

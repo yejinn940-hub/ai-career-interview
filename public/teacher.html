@@ -285,6 +285,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
         + '<div class="sub-item-top"><strong>' + escapeHtml(x.groupName || '') + '</strong>'
         + '<span class="badge ' + x.status + '">' + statusLabel(x.status) + '</span>'
         + (x.shared ? '<span class="badge shared">학급 공유중</span>' : '')
+        + (x.flagged ? '<span class="badge" style="background:#FDECEA;color:#B42318">개인정보 의심 ○○ 처리됨</span>' : '')
         + '</div>'
         + '<span class="sub-item-meta">' + escapeHtml(x.figureName || '') + ' · ' + escapeHtml(x.figureJob || '') + ' · 메시지 ' + x.messageCount + '개 · 최근 수정 ' + formatAt(x.updatedAt) + '</span>'
         + '<div class="sub-item-actions">'

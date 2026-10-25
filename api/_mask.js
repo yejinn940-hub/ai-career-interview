@@ -3,6 +3,8 @@
 const SURNAMES = '김이박최정강조윤장임한오서신권황안송류전홍고문양손배백허유남심노하곽성차주우구민나진지엄채원천방공현함변염여추도소석선설마길연위표명기반왕금옥육인맹제모탁국어은편용예경봉사부';
 const NOT_NAMES = ['학생들', '학생', '모둠', '어린이', '친구들', '친구', '제자', '기자', '리포터', '기사', '진행자', '면담자', '인터뷰어', '선생님', '교사'];
 
+const QUESTION_START = /^(뭐|뭔|뭘|무엇|무슨|어떻|어떤|어디|어느|누구|있|없|궁금|알려|되|좋|같|말)/;
+
 function maskPersonalInfo(text) {
   let t = String(text || '');
   // 전화번호, 메일
@@ -13,8 +15,13 @@ function maskPersonalInfo(text) {
   t = t.replace(/([가-힣]{2,6})초(?=에|를|은|는|이|가|의|와|과|로|도|만|예|$|[^가-힣])/g, '○○초');
   // "이름은 ○○○" 처럼 이름을 직접 말하는 경우
   t = t.replace(/(이름(?:은|이|는)?\s*)([가-힣]{2,4})/g, function (m, a, b) {
-    return NOT_NAMES.indexOf(b) === -1 ? a + '○○' : m;
+    return NOT_NAMES.indexOf(b) === -1 && !QUESTION_START.test(b) ? a + '○○' : m;
   });
+  // 별명·닉네임·성함을 직접 말하는 경우, 영어 소개
+  t = t.replace(/((?:별명|닉네임|성함|애칭)(?:은|이|는)?\s*)([가-힣]{2,6})/g, function (m, a, b) {
+    return NOT_NAMES.indexOf(b) === -1 && !QUESTION_START.test(b) ? a + '○○' : m;
+  });
+  t = t.replace(/(my name is|i am called|call me)\s+[A-Za-z]{2,20}/gi, '$1 ○○');
   // "저는 김예진입니다" "예진이에요" "김예진이라고 해요" 처럼 이름 + 서술어
   t = t.replace(/([가-힣]{2,4})(\s*)(입니다|이에요|예요|이라고|라고|이야|이고)/g, function (m, w, sp, end) {
     if (NOT_NAMES.indexOf(w) !== -1) return m;
@@ -25,4 +32,6 @@ function maskPersonalInfo(text) {
   return t;
 }
 
-module.exports = { maskPersonalInfo: maskPersonalInfo };
+function hasPersonalInfo(text) { return maskPersonalInfo(text) !== String(text || ''); }
+
+module.exports = { maskPersonalInfo: maskPersonalInfo, hasPersonalInfo: hasPersonalInfo };

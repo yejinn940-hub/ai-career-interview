@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const store = require('./_store');
+const { maskPersonalInfo } = require('./_mask');
 
 const MAX_RECORDS = 300;
 // 개인정보 보유기간: 마지막 수정으로부터 30일이 지난 면담 기록은 자동으로 삭제됨
@@ -80,8 +81,14 @@ module.exports = async function handler(req, res) {
       if (!room) { res.status(404).json({ error: '반 정보를 찾을 수 없어요.' }); return; }
 
       const groupName = store.normalize(body.groupName) || '이름없음';
+      let flagged = false;
       let messages = Array.isArray(body.messages) ? body.messages.slice(0, 80).map(function (m) {
-        return { role: m.role, content: String(m.content || '').slice(0, 2000) };
+        let c = String(m.content || '').slice(0, 2000);
+        if (m.role === 'user') {
+          const masked = maskPersonalInfo(c);
+          if (masked !== c) { flagged = true; c = masked; }
+        }
+        return { role: m.role, content: c };
       }) : [];
 
       const list = await getList(key);
@@ -100,6 +107,7 @@ module.exports = async function handler(req, res) {
         rec.figureName = body.figureName;
         rec.figureJob = body.figureJob;
         rec.messages = messages;
+        rec.flagged = flagged;
         rec.updatedAt = now;
       } else {
         id = id || genId();
@@ -110,6 +118,7 @@ module.exports = async function handler(req, res) {
           figureName: body.figureName,
           figureJob: body.figureJob,
           messages: messages,
+          flagged: flagged,
           status: 'in_progress',
           shared: true,
           startedAt: now,
@@ -227,7 +236,7 @@ module.exports = async function handler(req, res) {
           return {
             id: x.id, groupName: x.groupName, figureName: x.figureName, figureJob: x.figureJob,
             status: x.status, shared: x.shared, startedAt: x.startedAt, updatedAt: x.updatedAt,
-            submittedAt: x.submittedAt, messageCount: (x.messages || []).length
+            submittedAt: x.submittedAt, messageCount: (x.messages || []).length, flagged: !!x.flagged
           };
         });
       res.status(200).json({ ok: true, items: meta, teacherName: room.teacherName });

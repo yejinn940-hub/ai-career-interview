@@ -977,6 +977,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
   var SURNAMES = '김이박최정강조윤장임한오서신권황안송류전홍고문양손배백허유남심노하곽성차주우구민나진지엄채원천방공현함변염여추도소석선설마길연위표명기반왕금옥육인맹제모탁국어은편용예경봉사부';
   var NOT_NAMES = ['학생들','학생','모둠','어린이','친구들','친구','초등학교','학교','제자','기자','리포터','기사','진행자','면담자','인터뷰어'];
 
+  var QUESTION_START = /^(뭐|뭔|뭘|무엇|무슨|어떻|어떤|어디|어느|누구|있|없|궁금|알려|되|좋|같|말)/;
   function findPersonalInfo(text){
     var t = String(text);
     if(/01[016789][\s-]?\d{3,4}[\s-]?\d{4}/.test(t)) return '전화번호';
@@ -985,7 +986,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
     if(/[가-힣]{2,8}(?:초등학교|중학교|고등학교)/.test(t) || /[가-힣]{2,6}초(?:에|를|은|는|이|가|의|와|과|로|도|만|예|$|[^가-힣])/.test(t)) return '학교 이름';
     // "제 이름은 ○○○" 처럼 이름을 직접 말하는 경우
     var m = t.match(/이름[은이는]?\s*([가-힣]{2,4})/);
-    if(m && NOT_NAMES.indexOf(m[1]) === -1) return '이름';
+    if(m && NOT_NAMES.indexOf(m[1]) === -1 && !QUESTION_START.test(m[1])) return '이름';
+    var m2 = t.match(/(?:별명|닉네임|성함|애칭)[은이는]?\s*([가-힣]{2,6})/);
+    if(m2 && NOT_NAMES.indexOf(m2[1]) === -1 && !QUESTION_START.test(m2[1])) return '이름';
+    if(/(my name is|call me)\s+[A-Za-z]{2,20}/i.test(t)) return '이름';
     // "…김예진입니다 / 김예진이에요 / 김예진이라고 합니다" 처럼 끝에 이름이 오는 경우
     var re = /([가-힣]{2,4})\s*(?:입니다|이에요|예요|이라고|라고|이야|이고)/g, x;
     while((x = re.exec(t))){
